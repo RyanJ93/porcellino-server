@@ -1,5 +1,6 @@
 package dev.enricosola.porcellino.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.io.Serial;
@@ -26,13 +27,16 @@ public class User implements Serializable {
     private String email;
 
     @Column(name = "password")
+    @JsonIgnore
     private String password;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at")
+    @JsonIgnore
     private Date createdAt;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
+    @JsonIgnore
     private Date updatedAt;
 }

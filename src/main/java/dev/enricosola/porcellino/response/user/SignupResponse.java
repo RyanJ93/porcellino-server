@@ -12,11 +12,11 @@ public class SignupResponse extends SuccessResponse implements Response, Seriali
     @Serial
     private static final long serialVersionUID = 5639841085045500824L;
 
-    protected final String email;
+    protected final User user;
 
     public SignupResponse(User user){
         super(null);
 
-        this.email = user.getEmail();
+        this.user = user;
     }
 }

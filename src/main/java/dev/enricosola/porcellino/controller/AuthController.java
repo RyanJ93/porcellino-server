@@ -1,5 +1,6 @@
 package dev.enricosola.porcellino.controller;
 
+import dev.enricosola.porcellino.dto.AuthenticationContract;
 import dev.enricosola.porcellino.service.AuthenticationService;
 import dev.enricosola.porcellino.response.auth.LoginResponse;
 import dev.enricosola.porcellino.form.auth.LoginForm;
@@ -20,7 +21,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<Response> login(@Valid @ModelAttribute LoginForm loginForm){
-        String token = this.authenticationService.authenticateFromForm(loginForm);
-        return ResponseEntity.ok().body(new LoginResponse(token));
+        AuthenticationContract authenticationContract = this.authenticationService.authenticateFromForm(loginForm);
+        return ResponseEntity.ok().body(new LoginResponse(authenticationContract));
     }
 }
