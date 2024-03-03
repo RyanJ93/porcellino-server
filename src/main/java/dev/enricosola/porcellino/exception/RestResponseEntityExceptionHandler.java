@@ -9,12 +9,14 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import dev.enricosola.porcellino.response.BindingErrorResponse;
 import org.springframework.web.context.request.WebRequest;
+import java.sql.SQLIntegrityConstraintViolationException;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 
 @ControllerAdvice
+@SuppressWarnings("NullableProblems")
 public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request){
@@ -29,5 +31,13 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
     @ExceptionHandler({ BadCredentialsException.class })
     protected ResponseEntity<ExceptionErrorResponse> handleBadCredentials(BadCredentialsException ex){
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ExceptionErrorResponse(ex, "ERR_UNAUTHORIZED"));
+    }
+    @ExceptionHandler({ SQLIntegrityConstraintViolationException.class })
+    protected ResponseEntity<ExceptionErrorResponse> handleSQLIntegrityConstraintViolation(SQLIntegrityConstraintViolationException ex){
+        String message = ex.getLocalizedMessage();
+        if ( message.contains("Duplicate entry") && message.contains("users.users_email") ){
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ExceptionErrorResponse(ex, "ERR_EMAIL_ADDRESS_TAKEN"));
+        }
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ExceptionErrorResponse(ex, "ERROR"));
     }
 }

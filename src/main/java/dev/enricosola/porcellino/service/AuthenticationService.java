@@ -6,7 +6,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.context.SecurityContextHolder;
 import dev.enricosola.porcellino.form.auth.CredentialsAwareForm;
-import dev.enricosola.porcellino.dto.AuthenticationContract;
+import dev.enricosola.porcellino.support.AuthenticationContract;
 import org.springframework.security.core.Authentication;
 import dev.enricosola.porcellino.util.JwtUtils;
 import org.springframework.stereotype.Service;

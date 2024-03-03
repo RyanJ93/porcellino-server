@@ -1,4 +1,4 @@
-package dev.enricosola.porcellino.dto;
+package dev.enricosola.porcellino.support;
 
 import dev.enricosola.porcellino.entity.User;
 import lombok.AllArgsConstructor;
