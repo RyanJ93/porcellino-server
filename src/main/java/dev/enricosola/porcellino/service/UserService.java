@@ -6,7 +6,9 @@ import dev.enricosola.porcellino.repository.UserRepository;
 import dev.enricosola.porcellino.form.user.SignupForm;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
+import org.slf4j.LoggerFactory;
 import java.util.Optional;
+import org.slf4j.Logger;
 import java.util.Date;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,6 +16,8 @@ import lombok.Setter;
 @Service
 @Transactional
 public class UserService {
+    private static final Logger logger = LoggerFactory.getLogger(UserDetailsServiceImpl.class);
+
     private final UserRepository userRepository;
 
     @Getter
@@ -39,6 +43,8 @@ public class UserService {
         user.setCreatedAt(new Date());
         user.setUpdatedAt(new Date());
         user.setEmail(email);
-        return this.user = this.userRepository.saveAndFlush(user);
+        this.user = this.userRepository.saveAndFlush(user);
+        UserService.logger.info("Signed up user \"" + email + "\".");
+        return this.user;
     }
 }
