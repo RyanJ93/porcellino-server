@@ -10,7 +10,7 @@
     </parent>
     <groupId>dev.enricosola</groupId>
     <artifactId>porcellino</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <name>porcellino-server</name>
     <description>porcellino-server</description>
     <properties>
