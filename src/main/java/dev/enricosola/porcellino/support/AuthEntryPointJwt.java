@@ -6,17 +6,15 @@ import org.springframework.stereotype.Component;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.ServletException;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
-import org.slf4j.Logger;
 
 @Component
+@Slf4j
 public class AuthEntryPointJwt implements AuthenticationEntryPoint {
-    private static final Logger logger = LoggerFactory.getLogger(AuthEntryPointJwt.class);
-
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
-        AuthEntryPointJwt.logger.error("Unauthorized error: {}", authException.getMessage());
+        log.error("Unauthorized error: {}", authException.getMessage());
         response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Error: Unauthorized");
     }
 }

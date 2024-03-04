@@ -12,13 +12,12 @@ import dev.enricosola.porcellino.util.JwtUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.FilterChain;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
-import org.slf4j.Logger;
 
 @Component
+@Slf4j
 public class AuthTokenFilter extends OncePerRequestFilter {
-    private static final Logger logger = LoggerFactory.getLogger(AuthTokenFilter.class);
     private static final String HEADER_NAME = "Authorization";
     private static final String HEADER_KEYWORD = "Bearer";
 
@@ -50,7 +49,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
         }catch(Exception ex){
-            AuthTokenFilter.logger.error("Cannot set user authentication: {}", ex.getMessage());
+            log.error("Cannot set user authentication: {}", ex.getMessage());
         }
         filterChain.doFilter(request, response);
     }
