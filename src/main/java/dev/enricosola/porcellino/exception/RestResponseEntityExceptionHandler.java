@@ -41,7 +41,7 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
         String message = ex.getLocalizedMessage();
         log.error(message);
         if ( message.contains("Duplicate entry") && message.contains("users.users_email") ){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ExceptionErrorResponse(ex, "ERR_EMAIL_ADDRESS_TAKEN"));
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ExceptionErrorResponse(ex, "ERR_EMAIL_ADDRESS_TAKEN"));
         }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ExceptionErrorResponse(ex, "ERROR"));
     }
