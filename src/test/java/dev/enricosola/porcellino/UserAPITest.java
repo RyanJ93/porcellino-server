@@ -28,7 +28,7 @@ public class UserAPITest {
 
     @BeforeEach
     public void setup(){
-        if ( !this.initialized ){System.out.println("CLEAN");
+        if ( !this.initialized ){
             this.jdbcTemplate.execute("TRUNCATE TABLE users;");
             this.initialized = true;
         }
