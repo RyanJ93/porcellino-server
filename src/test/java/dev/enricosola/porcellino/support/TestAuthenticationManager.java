@@ -9,8 +9,8 @@ import java.util.Optional;
 
 @Component
 public class TestAuthenticationManager {
-    public static final String TEST_USER_PASSWORD = "test_password";
-    public static final String TEST_USER_EMAIL = "test@test.it";
+    private static final String TEST_USER_PASSWORD = "test_password";
+    private static final String TEST_USER_EMAIL = "test@test.it";
 
     @Autowired
     private AuthenticationService authenticationService;
@@ -20,6 +20,14 @@ public class TestAuthenticationManager {
 
     private String authenticationToken = null;
     private User authenticatedUser = null;
+
+    public String getTestUserPassword(){
+        return TestAuthenticationManager.TEST_USER_PASSWORD;
+    }
+
+    public String getTestUserEmail(){
+        return TestAuthenticationManager.TEST_USER_EMAIL;
+    }
 
     public void ensureTestUser(){
         Optional<User> user = this.userService.getUserByEmail(TEST_USER_EMAIL);
