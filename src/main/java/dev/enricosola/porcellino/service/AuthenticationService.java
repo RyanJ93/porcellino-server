@@ -6,12 +6,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.core.context.SecurityContextHolder;
 import dev.enricosola.porcellino.form.auth.CredentialsAwareForm;
 import dev.enricosola.porcellino.support.AuthenticationContract;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.core.Authentication;
 import dev.enricosola.porcellino.util.JwtUtils;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
 import lombok.extern.slf4j.Slf4j;
 
+@Transactional
 @Service
 @Slf4j
 public class AuthenticationService {

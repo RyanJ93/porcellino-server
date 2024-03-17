@@ -1,8 +1,10 @@
 package dev.enricosola.porcellino.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.io.Serial;
+import java.util.Set;
 import lombok.*;
 
 @Entity
@@ -29,4 +31,8 @@ public class Currency implements Serializable {
 
     @Column(name = "symbol")
     private String symbol;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "currency")
+    @JsonBackReference
+    private Set<Portfolio> portfolios;
 }
