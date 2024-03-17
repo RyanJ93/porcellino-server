@@ -3,13 +3,17 @@ package dev.enricosola.porcellino;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import dev.enricosola.porcellino.support.TestAuthenticationManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.RequestBuilder;
 import dev.enricosola.porcellino.support.DatabaseCleaner;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.MockMvc;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -19,6 +23,9 @@ import org.junit.jupiter.api.*;
 @AutoConfigureMockMvc
 public class UserAPITest {
     private boolean initialized = false;
+
+    @Autowired
+    private TestAuthenticationManager testAuthenticationManager;
 
     @Autowired
     private DatabaseCleaner databaseCleaner;
@@ -49,8 +56,8 @@ public class UserAPITest {
     @DisplayName("Testing user account creation.")
     public void userSignup() throws Exception {
         RequestBuilder requestBuilder = post("/api/user/signup")
-                .param("password", "test_password")
-                .param("email", "test@test.it");
+                .param("password", this.testAuthenticationManager.getTestUserPassword())
+                .param("email", this.testAuthenticationManager.getTestUserEmail());
         this.mockMvc.perform(requestBuilder).andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.email").value("test@test.it"))
                 .andExpect(jsonPath("$.status").value("SUCCESS"))
@@ -62,8 +69,8 @@ public class UserAPITest {
     @DisplayName("Testing duplicated email address detection.")
     public void duplicatedEmailAddress() throws Exception {
         RequestBuilder requestBuilder = post("/api/user/signup")
-                .param("password", "test_password")
-                .param("email", "test@test.it");
+                .param("password", this.testAuthenticationManager.getTestUserPassword())
+                .param("email", this.testAuthenticationManager.getTestUserEmail());
         this.mockMvc.perform(requestBuilder).andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value("ERR_EMAIL_ADDRESS_TAKEN"));
     }
@@ -83,8 +90,8 @@ public class UserAPITest {
     @DisplayName("Testing user authentication.")
     public void userLogin() throws Exception {
         RequestBuilder requestBuilder = post("/api/auth/login")
-                .param("password", "test_password")
-                .param("email", "test@test.it");
+                .param("password", this.testAuthenticationManager.getTestUserPassword())
+                .param("email", this.testAuthenticationManager.getTestUserEmail());
         this.mockMvc.perform(requestBuilder).andExpect(status().isOk())
                 .andExpect(jsonPath("$.user.email").value("test@test.it"))
                 .andExpect(jsonPath("$.status").value("SUCCESS"))
@@ -96,8 +103,8 @@ public class UserAPITest {
     @DisplayName("Testing user not found detection.")
     public void userNotFound() throws Exception {
         RequestBuilder requestBuilder = post("/api/auth/login")
-                .param("password", "test_password")
-                .param("email", "not-found@test.it");
+                .param("password", this.testAuthenticationManager.getTestUserPassword())
+                .param("email", "undefined." + this.testAuthenticationManager.getTestUserEmail());
         this.mockMvc.perform(requestBuilder).andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value("ERR_NOT_FOUND"));
     }
@@ -107,9 +114,23 @@ public class UserAPITest {
     @DisplayName("Testing user invalid credentials detection.")
     public void invalidCredentials() throws Exception {
         RequestBuilder requestBuilder = post("/api/auth/login")
-                .param("password", "invalid_password")
-                .param("email", "test@test.it");
+                .param("password", this.testAuthenticationManager.getTestUserPassword() + "-invalid")
+                .param("email", this.testAuthenticationManager.getTestUserEmail());
         this.mockMvc.perform(requestBuilder).andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value("ERR_UNAUTHORIZED"));
+    }
+
+    @Order(8)
+    @Test
+    @DisplayName("Testing authentication token renew.")
+    public void reviewToken() throws Exception {
+        String authenticationToken = this.testAuthenticationManager.getAuthenticationToken();
+        RequestBuilder requestBuilder = get("/api/auth/renew")
+                .header("Authorization", "Bearer " + authenticationToken);
+        MvcResult mvcResult = this.mockMvc.perform(requestBuilder).andExpect(status().isOk())
+                .andExpect(jsonPath("$.token").isNotEmpty()).andReturn();
+        String token = JsonPath.read(mvcResult.getResponse().getContentAsString(), "$.token");
+        requestBuilder = get("/api/auth/renew").header("Authorization", "Bearer " + token);
+        this.mockMvc.perform(requestBuilder).andExpect(status().isOk()).andExpect(jsonPath("$.token").isNotEmpty());
     }
 }
