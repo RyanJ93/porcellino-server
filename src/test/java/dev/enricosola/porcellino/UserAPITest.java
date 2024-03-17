@@ -7,9 +7,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.RequestBuilder;
+import dev.enricosola.porcellino.support.DatabaseCleaner;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -21,7 +21,7 @@ public class UserAPITest {
     private boolean initialized = false;
 
     @Autowired
-    private JdbcTemplate jdbcTemplate;
+    private DatabaseCleaner databaseCleaner;
 
     @Autowired
     private MockMvc mockMvc;
@@ -29,7 +29,7 @@ public class UserAPITest {
     @BeforeEach
     public void setup(){
         if ( !this.initialized ){
-            this.jdbcTemplate.execute("TRUNCATE TABLE users;");
+            this.databaseCleaner.clean();
             this.initialized = true;
         }
     }
