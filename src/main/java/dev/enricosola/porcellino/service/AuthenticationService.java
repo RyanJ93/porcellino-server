@@ -1,5 +1,6 @@
 package dev.enricosola.porcellino.service;
 
+import dev.enricosola.porcellino.support.AuthenticatedUserDetails;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -38,6 +39,12 @@ public class AuthenticationService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         String token = this.jwtUtils.generateJwtToken(authentication);
         return new AuthenticationContract(token, user);
+    }
+
+    public User getAuthenticatedUser(Authentication authentication){
+        AuthenticatedUserDetails authenticatedUserDetails = (AuthenticatedUserDetails)authentication.getPrincipal();
+        return this.userService.getUserByEmail(authenticatedUserDetails.getUsername())
+                .orElseThrow(() -> new UsernameNotFoundException("User not found."));
     }
 
     public String renew(Authentication authentication){
