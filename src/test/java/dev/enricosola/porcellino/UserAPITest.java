@@ -133,4 +133,23 @@ public class UserAPITest {
         requestBuilder = get("/api/auth/renew").header("Authorization", "Bearer " + token);
         this.mockMvc.perform(requestBuilder).andExpect(status().isOk()).andExpect(jsonPath("$.token").isNotEmpty());
     }
+
+    @Order(9)
+    @Test
+    @DisplayName("Testing authenticated user information gathering.")
+    public void userInfo() throws Exception {
+        String authenticationToken = this.testAuthenticationManager.getAuthenticationToken();
+        String email = this.testAuthenticationManager.getTestUserEmail();
+        RequestBuilder requestBuilder = get("/api/user/info")
+                .header("Authorization", "Bearer " + authenticationToken);
+        this.mockMvc.perform(requestBuilder).andExpect(status().isOk())
+                .andExpect(jsonPath("$.user.email").value(email));
+    }
+
+    @Order(10)
+    @Test
+    @DisplayName("Testing non-authenticated user information gathering.")
+    public void unauthorizedUserInfo() throws Exception {
+        this.mockMvc.perform(get("/api/user/info")).andExpect(status().isUnauthorized());
+    }
 }
