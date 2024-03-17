@@ -39,4 +39,8 @@ public class AuthenticationService {
         String token = this.jwtUtils.generateJwtToken(authentication);
         return new AuthenticationContract(token, user);
     }
+
+    public String renew(Authentication authentication){
+        return this.jwtUtils.generateJwtToken(authentication);
+    }
 }
