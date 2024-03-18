@@ -8,8 +8,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
-@Service
 @Transactional
+@Service
 @Slf4j
 public class UserDetailsServiceImpl implements UserDetailsService {
     private final UserService userService;

@@ -1,34 +1,35 @@
 package dev.enricosola.porcellino.entity;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.io.Serial;
 import java.util.Date;
-import java.util.Set;
 import lombok.*;
 
 @Entity
-@Table(name = "users", uniqueConstraints = {
-    @UniqueConstraint(columnNames = "email")
-})
+@Table(name = "portfolios")
 @Getter
 @Setter
 @RequiredArgsConstructor
-public class User implements Serializable {
+public class Portfolio implements Serializable {
     @Serial
-    private static final long serialVersionUID = -2090355125855192549L;
+    private static final long serialVersionUID = -3439589906774660466L;
 
     @Id
     @Column(name = "id")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int id;
 
-    @Column(name = "email")
-    private String email;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_id")
+    private User user;
 
-    @Column(name = "password")
-    private String password;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "currency_id")
+    private Currency currency;
+
+    @Column(name = "name")
+    private String name;
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at")
@@ -37,8 +38,4 @@ public class User implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
     private Date updatedAt;
-
-    @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")
-    @JsonBackReference
-    private Set<Portfolio> portfolios;
 }

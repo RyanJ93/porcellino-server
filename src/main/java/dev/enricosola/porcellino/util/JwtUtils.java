@@ -21,7 +21,7 @@ public class JwtUtils {
     private String jwtSecret;
 
     public String generateJwtToken(Authentication authentication){
-        AuthenticatedUserDetails authenticatedUserDetails = (AuthenticatedUserDetails) authentication.getPrincipal();
+        AuthenticatedUserDetails authenticatedUserDetails = (AuthenticatedUserDetails)authentication.getPrincipal();
         SecretKey secretKey = Keys.hmacShaKeyFor(this.jwtSecret.getBytes(StandardCharsets.UTF_8));
         JwtBuilder jwtBuilder = Jwts.builder().subject((authenticatedUserDetails.getUsername()));
         jwtBuilder.expiration(new Date((new Date()).getTime() + this.jwtExpirationMs));

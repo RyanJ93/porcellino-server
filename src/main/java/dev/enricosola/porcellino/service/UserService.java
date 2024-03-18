@@ -12,8 +12,8 @@ import java.util.Date;
 import lombok.Getter;
 import lombok.Setter;
 
-@Service
 @Transactional
+@Service
 @Slf4j
 public class UserService {
     private final UserRepository userRepository;
