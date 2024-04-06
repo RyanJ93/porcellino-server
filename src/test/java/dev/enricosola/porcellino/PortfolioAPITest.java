@@ -45,7 +45,7 @@ public class PortfolioAPITest {
     @Test
     @Order(1)
     @DisplayName("Testing invalid form data detection when creating a portfolio.")
-    public void invalidSignupParameters() throws Exception {
+    public void invalidCreationParameters() throws Exception {
         String authenticationToken = this.testAuthenticationManager.getAuthenticationToken();
         RequestBuilder requestBuilder = post("/api/portfolio/create")
                 .header("Authorization", "Bearer " + authenticationToken);

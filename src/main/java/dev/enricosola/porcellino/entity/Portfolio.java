@@ -1,9 +1,11 @@
 package dev.enricosola.porcellino.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.io.Serial;
 import java.util.Date;
+import java.util.Set;
 import lombok.*;
 
 @Entity
@@ -38,4 +40,8 @@ public class Portfolio implements Serializable {
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
     private Date updatedAt;
+
+    @OneToMany(fetch = FetchType.LAZY, mappedBy = "portfolio")
+    @JsonBackReference
+    private Set<Transaction> transactionSet;
 }
