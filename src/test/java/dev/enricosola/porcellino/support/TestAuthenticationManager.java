@@ -6,6 +6,7 @@ import dev.enricosola.porcellino.service.UserService;
 import org.springframework.stereotype.Component;
 import dev.enricosola.porcellino.entity.User;
 import java.util.Optional;
+import lombok.Getter;
 
 @Component
 public class TestAuthenticationManager {
@@ -19,6 +20,8 @@ public class TestAuthenticationManager {
     private UserService userService;
 
     private String authenticationToken = null;
+
+    @Getter
     private User authenticatedUser = null;
 
     public String getTestUserPassword(){
@@ -45,9 +48,5 @@ public class TestAuthenticationManager {
             });
         }
         return this.authenticationToken;
-    }
-
-    private User getAuthenticatedUser(){
-        return this.authenticatedUser;
     }
 }

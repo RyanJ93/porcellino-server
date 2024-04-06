@@ -28,3 +28,17 @@ CREATE TABLE IF NOT EXISTS portfolios
     CONSTRAINT FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
     CONSTRAINT FOREIGN KEY (currency_id) REFERENCES currencies (id)
 );
+
+CREATE TABLE IF NOT EXISTS transactions
+(
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    portfolio_id INT                NOT NULL,
+    amount       FLOAT              NOT NULL,
+    quantity     INT                NOT NULL DEFAULT 1,
+    type         ENUM ('IN', 'OUT') NOT NULL,
+    note         TEXT,
+    date         TIMESTAMP          NOT NULL DEFAULT NOW(),
+    created_at   TIMESTAMP          NOT NULL DEFAULT NOW(),
+    updated_at   TIMESTAMP          NOT NULL DEFAULT NOW(),
+    CONSTRAINT FOREIGN KEY (portfolio_id) REFERENCES portfolios (id) ON DELETE CASCADE
+);
