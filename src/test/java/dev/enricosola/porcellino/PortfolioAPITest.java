@@ -37,6 +37,7 @@ public class PortfolioAPITest {
     public void setup(){
         if ( !this.initialized ){
             this.databaseCleaner.clean();
+            this.testAuthenticationManager.ensureSecondaryTestUser();
             this.testAuthenticationManager.ensureTestUser();
             this.initialized = true;
         }
@@ -117,6 +118,17 @@ public class PortfolioAPITest {
 
     @Test
     @Order(6)
+    @DisplayName("Testing previously created portfolio edit from another user.")
+    public void unauthorizedPortfolioEdit() throws Exception {
+        String authenticationToken = this.testAuthenticationManager.getSecondaryAuthenticationToken();
+        RequestBuilder requestBuilder = patch("/api/portfolio/1/edit")
+                .header("Authorization", "Bearer " + authenticationToken)
+                .param("name", "Test unauthorized edit");
+        this.mockMvc.perform(requestBuilder).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @Order(7)
     @DisplayName("Testing portfolio delete.")
     public void portfolioDelete() throws Exception {
         String authenticationToken = this.testAuthenticationManager.getAuthenticationToken();
@@ -127,7 +139,7 @@ public class PortfolioAPITest {
     }
 
     @Test
-    @Order(7)
+    @Order(8)
     @DisplayName("Testing portfolio listing when there is no portfolio left.")
     public void portfolioEmptyListing() throws Exception {
         String authenticationToken = this.testAuthenticationManager.getAuthenticationToken();

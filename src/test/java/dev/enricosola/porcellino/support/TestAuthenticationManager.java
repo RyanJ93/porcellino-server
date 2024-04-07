@@ -10,6 +10,7 @@ import lombok.Getter;
 
 @Component
 public class TestAuthenticationManager {
+    private static final String SECONDARY_TEST_USER_EMAIL = "test_secondary@test.it";
     private static final String TEST_USER_PASSWORD = "test_password";
     private static final String TEST_USER_EMAIL = "test@test.it";
 
@@ -19,7 +20,11 @@ public class TestAuthenticationManager {
     @Autowired
     private UserService userService;
 
+    private String secondaryAuthenticationToken = null;
     private String authenticationToken = null;
+
+    @Getter
+    private User secondaryAuthenticatedUser = null;
 
     @Getter
     private User authenticatedUser = null;
@@ -40,6 +45,14 @@ public class TestAuthenticationManager {
         }
     }
 
+    public void ensureSecondaryTestUser(){
+        Optional<User> user = this.userService.getUserByEmail(SECONDARY_TEST_USER_EMAIL);
+        if ( user.isEmpty() ){
+            this.userService.create(SECONDARY_TEST_USER_EMAIL, TEST_USER_PASSWORD);
+            this.getSecondaryAuthenticationToken();
+        }
+    }
+
     public String getAuthenticationToken(){
         if ( this.authenticationToken == null ){
             this.authenticationToken = this.authenticationService.authenticate(TEST_USER_EMAIL, TEST_USER_PASSWORD).getToken();
@@ -48,5 +61,15 @@ public class TestAuthenticationManager {
             });
         }
         return this.authenticationToken;
+    }
+
+    public String getSecondaryAuthenticationToken(){
+        if ( this.secondaryAuthenticationToken == null ){
+            this.secondaryAuthenticationToken = this.authenticationService.authenticate(SECONDARY_TEST_USER_EMAIL, TEST_USER_PASSWORD).getToken();
+            this.secondaryAuthenticatedUser = this.userService.getUserByEmail(SECONDARY_TEST_USER_EMAIL).orElseThrow(() -> {
+                return new RuntimeException("Test user not found.");
+            });
+        }
+        return this.secondaryAuthenticationToken;
     }
 }
