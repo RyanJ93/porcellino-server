@@ -8,13 +8,15 @@ import dev.enricosola.porcellino.enums.TransactionType;
 import dev.enricosola.porcellino.entity.Transaction;
 import dev.enricosola.porcellino.entity.Portfolio;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 import java.util.Date;
 import java.util.List;
 import lombok.Getter;
 import lombok.Setter;
 
-@Service
 @Transactional
+@Service
+@Slf4j
 public class TransactionService {
     private final TransactionRepository transactionRepository;
 
@@ -65,6 +67,8 @@ public class TransactionService {
         transaction.setType(type);
         transaction.setDate(date);
         transaction.setNote(note);
+        String logMessage = "Created new transaction with type {}, amount {} and quantity {} at date {} and contained in portfolio {}.";
+        TransactionService.log.info(logMessage, type, amount, quantity, date, portfolio.getId());
         return this.transaction = this.transactionRepository.save(transaction);
     }
 
@@ -75,11 +79,14 @@ public class TransactionService {
         this.transaction.setType(type);
         this.transaction.setDate(date);
         this.transaction.setNote(note);
+        String logMessage = "Updated transaction {} with type {}, amount {} and quantity {} at date {}.";
+        TransactionService.log.info(logMessage, this.transaction.getId(), type, amount, quantity, date);
         return this.transactionRepository.save(this.transaction);
     }
 
     public void delete(){
         this.transactionRepository.delete(this.transaction);
+        TransactionService.log.info("Deleted transaction {}.", this.transaction.getId());
         this.transaction = null;
     }
 }
