@@ -18,7 +18,6 @@ import lombok.extern.slf4j.Slf4j;
 
 @ControllerAdvice
 @Slf4j
-@SuppressWarnings("NullableProblems")
 public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionHandler {
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request){
@@ -36,6 +35,7 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
         log.error(ex.getLocalizedMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ExceptionErrorResponse(ex, "ERR_UNAUTHORIZED"));
     }
+
     @ExceptionHandler({ SQLIntegrityConstraintViolationException.class })
     protected ResponseEntity<ExceptionErrorResponse> handleSQLIntegrityConstraintViolation(SQLIntegrityConstraintViolationException ex){
         String message = ex.getLocalizedMessage();
