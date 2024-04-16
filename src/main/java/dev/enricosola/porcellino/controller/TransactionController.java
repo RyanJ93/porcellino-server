@@ -16,7 +16,9 @@ import dev.enricosola.porcellino.entity.Portfolio;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 import org.modelmapper.ModelMapper;
+import org.modelmapper.TypeToken;
 import jakarta.validation.Valid;
+import java.lang.reflect.Type;
 import java.util.List;
 
 @RestController
@@ -40,7 +42,8 @@ public class TransactionController {
             throw new ResponseStatusException(NOT_FOUND, "No such portfolio found.");
         }
         List<Transaction> transactionList = this.transactionService.getAll(portfolio);
-        return ResponseEntity.ok(new ListResponse(transactionList));
+        Type transactionListType = new TypeToken<List<TransactionDTO>>() {}.getType();
+        return ResponseEntity.ok(new ListResponse(this.modelMapper.map(transactionList, transactionListType)));
     }
 
     @PostMapping("/create")

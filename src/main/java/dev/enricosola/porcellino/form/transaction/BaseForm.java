@@ -22,7 +22,7 @@ public abstract class BaseForm {
     @Size(max = 10000, message = "Note must be shorter than 10000 characters.")
     private String note;
 
-    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     @NotNull(message = "You must provide a valid date.")
     private Date date;
 }
