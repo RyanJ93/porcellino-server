@@ -51,7 +51,7 @@ public class PortfolioOwnershipCheckInterceptor implements HandlerInterceptor {
         if ( portfolio != null ){
             User user = this.getAuthenticatedUser();
             if ( portfolio.getUser().getId() != user.getId() ){
-                PortfolioOwnershipCheckInterceptor.log.warn("Unauthorized access attempt by user ID{} to portfolio {}.", user.getId(), portfolio.getId());
+                PortfolioOwnershipCheckInterceptor.log.warn("Unauthorized access attempt by user ID {} to portfolio {}.", user.getId(), portfolio.getId());
                 throw new ResponseStatusException(FORBIDDEN, "Portfolio access denied.");
             }
         }
