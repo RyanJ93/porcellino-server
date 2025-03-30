@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import dev.enricosola.porcellino.response.BindingErrorResponse;
 import org.springframework.web.context.request.WebRequest;
-import java.sql.SQLIntegrityConstraintViolationException;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.HttpHeaders;
@@ -36,13 +35,9 @@ public class RestResponseEntityExceptionHandler extends ResponseEntityExceptionH
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ExceptionErrorResponse(ex, "ERR_UNAUTHORIZED"));
     }
 
-    @ExceptionHandler({ SQLIntegrityConstraintViolationException.class })
-    protected ResponseEntity<ExceptionErrorResponse> handleSQLIntegrityConstraintViolation(SQLIntegrityConstraintViolationException ex){
-        String message = ex.getLocalizedMessage();
-        log.error(message);
-        if ( message.contains("Duplicate entry") && message.contains("users.users_email") ){
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ExceptionErrorResponse(ex, "ERR_EMAIL_ADDRESS_TAKEN"));
-        }
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ExceptionErrorResponse(ex, "ERROR"));
+    @ExceptionHandler({ DuplicateEmailAddressException.class })
+    protected ResponseEntity<ExceptionErrorResponse> handleSQLIntegrityConstraintViolation(DuplicateEmailAddressException ex) {
+        ExceptionErrorResponse exceptionErrorResponse = new ExceptionErrorResponse(ex, "ERR_EMAIL_ALREADY_EXISTS");
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exceptionErrorResponse);
     }
 }

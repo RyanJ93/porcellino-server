@@ -1,12 +1,15 @@
 package dev.enricosola.porcellino.entity;
 
+import org.springframework.data.annotation.LastModifiedDate;
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import org.springframework.data.annotation.CreatedDate;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.io.Serial;
 import java.util.Date;
 import java.util.Set;
 import lombok.*;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(name = "users", uniqueConstraints = {
@@ -15,6 +18,7 @@ import lombok.*;
 @Getter
 @Setter
 @RequiredArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 public class User implements Serializable {
     @Serial
     private static final long serialVersionUID = -2090355125855192549L;
@@ -30,12 +34,12 @@ public class User implements Serializable {
     @Column(name = "password")
     private String password;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at")
+    @CreatedDate
     private Date createdAt;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
+    @LastModifiedDate
     private Date updatedAt;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")

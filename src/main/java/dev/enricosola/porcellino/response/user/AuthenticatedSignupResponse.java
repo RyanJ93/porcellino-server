@@ -1,6 +1,6 @@
 package dev.enricosola.porcellino.response.user;
 
-import dev.enricosola.porcellino.dto.UserDTO;
+import dev.enricosola.porcellino.dto.user.UserDTO;
 import java.io.Serial;
 import lombok.Getter;
 

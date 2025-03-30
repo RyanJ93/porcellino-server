@@ -12,16 +12,18 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class UserDetailsServiceImpl implements UserDetailsService {
-    private final UserService userService;
+    private final UserLookupService userLookupService;
 
-    public UserDetailsServiceImpl(UserService userService){
-        this.userService = userService;
+    public UserDetailsServiceImpl(
+        UserLookupService userLookupService
+    ) {
+        this.userLookupService = userLookupService;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return new AuthenticatedUserDetails(this.userService.getUserByEmail(username).orElseThrow(() -> {
-            log.info("Access denied for user \"" + username + "\": no matching user found.");
+        return new AuthenticatedUserDetails(this.userLookupService.getUserByEmail(username).orElseThrow(() -> {
+            log.info("Access denied for user \"{}\": no matching user found.", username);
             return new UsernameNotFoundException("No user matching the given email address found.");
         }));
     }
