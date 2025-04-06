@@ -34,6 +34,9 @@ public class User implements Serializable {
     @Column(name = "password")
     private String password;
 
+    @Column(name = "active")
+    private boolean active;
+
     @Column(name = "created_at")
     @CreatedDate
     private Date createdAt;

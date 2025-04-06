@@ -28,9 +28,7 @@ public class PortfolioOwnershipCheckInterceptor implements HandlerInterceptor {
     private User getAuthenticatedUser(){
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         AuthenticatedUserDetails authenticatedUserDetails = (AuthenticatedUserDetails)authentication.getPrincipal();
-        return this.userService.getUserByEmail(authenticatedUserDetails.getUsername()).orElseThrow(() -> {
-            return new UsernameNotFoundException("No such user found.");
-        });
+        return this.userService.findByEmail(authenticatedUserDetails.getUsername());
     }
 
     private Portfolio extractPortfolio(HttpServletRequest request){

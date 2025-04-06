@@ -40,22 +40,29 @@ public class TestAuthenticationManager {
     }
 
     public void ensureTestUser(){
+        /*
         Optional<User> user = this.userService.getUserByEmail(TEST_USER_EMAIL);
         if ( user.isEmpty() ){
             //this.userService.create(TEST_USER_EMAIL, TEST_USER_PASSWORD);
             this.getAuthenticationToken();
         }
+
+         */
     }
 
     public void ensureSecondaryTestUser(){
+        /*
         Optional<User> user = this.userService.getUserByEmail(SECONDARY_TEST_USER_EMAIL);
         if ( user.isEmpty() ){
             //this.userService.create(SECONDARY_TEST_USER_EMAIL, TEST_USER_PASSWORD);
             this.getSecondaryAuthenticationToken();
         }
+
+         */
     }
 
     public String getAuthenticationToken(){
+        /*
         if ( this.authenticationToken == null ){
            // this.authenticationToken = this.authenticationService.authenticate(TEST_USER_EMAIL, TEST_USER_PASSWORD).getToken();
             this.authenticatedUser = this.userService.getUserByEmail(TEST_USER_EMAIL).orElseThrow(() -> {
@@ -63,9 +70,13 @@ public class TestAuthenticationManager {
             });
         }
         return this.authenticationToken;
+
+         */
+        return "";
     }
 
     public String getSecondaryAuthenticationToken(){
+        /*
         if ( this.secondaryAuthenticationToken == null ){
             //this.secondaryAuthenticationToken = this.authenticationService.authenticate(SECONDARY_TEST_USER_EMAIL, TEST_USER_PASSWORD).getToken();
             this.secondaryAuthenticatedUser = this.userService.getUserByEmail(SECONDARY_TEST_USER_EMAIL).orElseThrow(() -> {
@@ -73,5 +84,8 @@ public class TestAuthenticationManager {
             });
         }
         return this.secondaryAuthenticationToken;
+
+         */
+        return "";
     }
 }

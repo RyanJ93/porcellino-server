@@ -1,6 +1,8 @@
 package dev.enricosola.porcellino.controller.v1;
 
+import dev.enricosola.porcellino.dto.request.user.UserResendActivationTokenRequestDTO;
 import dev.enricosola.porcellino.response.user.AuthenticatedSignupResponse;
+import dev.enricosola.porcellino.dto.request.user.UserActivateRequestDTO;
 import dev.enricosola.porcellino.dto.request.user.UserSignupRequestDTO;
 import dev.enricosola.porcellino.response.user.UserInfoResponse;
 import dev.enricosola.porcellino.support.AuthenticationContract;
@@ -37,8 +39,26 @@ public class UserController {
      * Return authenticated user details.
      */
     @GetMapping("/@me")
-    public ResponseEntity<UserInfoResponse> info(Authentication authentication) {
+    public ResponseEntity<UserInfoResponse> me(Authentication authentication) {
         UserDTO userDTO = UserDTO.fromEntity(this.authenticationService.getAuthenticatedUser(authentication));
         return ResponseEntity.ok().body(new UserInfoResponse(userDTO));
+    }
+
+    /**
+     * Activate a given user provided a valid verification token.
+     */
+    @PatchMapping("/{userId}/activate")
+    public ResponseEntity<UserInfoResponse> activate(@PathVariable int userId, @Valid @RequestBody UserActivateRequestDTO userActivateRequestDTO) {
+        UserDTO userDTO = UserDTO.fromEntity(this.userService.findAndActivate(userId, userActivateRequestDTO.toServiceDTO()));
+        return ResponseEntity.ok().body(new UserInfoResponse(userDTO));
+    }
+
+    /**
+     * Resend verification email for a given user.
+     */
+    @PostMapping("/@me/resend-activation-token")
+    public ResponseEntity<Void> resendActivationToken(@Valid @RequestBody UserResendActivationTokenRequestDTO userResendActivationTokenRequestDTO) {
+        this.userService.findAndSendActivationEmail(userResendActivationTokenRequestDTO.toServiceDTO());
+        return ResponseEntity.noContent().build();
     }
 }

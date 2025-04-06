@@ -20,6 +20,13 @@ import org.springframework.context.annotation.Bean;
 @Configuration
 @EnableMethodSecurity
 public class WebSecurityConfig {
+    private static final String[] PUBLIC_ROUTE_LIST = {
+        "/api/v1/users/@me/resend-activation-token",
+        "/api/v1/users/signup",
+        "/api/v1/auth/**",
+        "/api/test/**"
+    };
+
     private final UserDetailsServiceImpl userDetailsService;
     private final AuthEntryPointJwt authEntryPointJwt;
     private final AuthTokenFilter authTokenFilter;
@@ -53,12 +60,12 @@ public class WebSecurityConfig {
         http.csrf(AbstractHttpConfigurer::disable)
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(this.authEntryPointJwt))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth ->
-                        auth.requestMatchers("/api/v1/users/signup").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/api/test/**").permitAll()
-                        .anyRequest().authenticated()
-                );
+                .authorizeHttpRequests(auth -> {
+                    for ( String publicRoute : WebSecurityConfig.PUBLIC_ROUTE_LIST ) {
+                        auth.requestMatchers(publicRoute).permitAll();
+                    }
+                    auth.anyRequest().authenticated();
+                });
         http.authenticationProvider(authenticationProvider());
         http.addFilterBefore(this.authTokenFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

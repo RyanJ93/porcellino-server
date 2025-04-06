@@ -1,36 +1,48 @@
 package dev.enricosola.porcellino.service;
 
+import dev.enricosola.porcellino.exception.VerificationTokenMismatchException;
 import dev.enricosola.porcellino.exception.DuplicateEmailAddressException;
+import dev.enricosola.porcellino.exception.UserAlreadyActivatedException;
+import dev.enricosola.porcellino.dto.user.UserResendActivationTokenDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import dev.enricosola.porcellino.support.AuthenticationContract;
 import org.springframework.dao.DataIntegrityViolationException;
+import dev.enricosola.porcellino.exception.NotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
+import dev.enricosola.porcellino.events.UserActivatedEvent;
 import dev.enricosola.porcellino.repository.UserRepository;
+import dev.enricosola.porcellino.dto.user.UserActivateDTO;
 import dev.enricosola.porcellino.events.UserCreatedEvent;
+import dev.enricosola.porcellino.events.UserUpdatedEvent;
 import dev.enricosola.porcellino.dto.user.UserCreateDTO;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
 import lombok.extern.slf4j.Slf4j;
-import java.util.Optional;
 
 @Service
 @Slf4j
 public class UserService {
+    private final UserVerificationTokenService userVerificationTokenService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final UserNotificationService userNotificationService;
     private final AuthenticationService authenticationService;
     private final UserLookupService userLookupService;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
 
     public UserService(
+        UserVerificationTokenService userVerificationTokenService,
         ApplicationEventPublisher applicationEventPublisher,
+        UserNotificationService userNotificationService,
         AuthenticationService authenticationService,
         UserLookupService userLookupService,
         PasswordEncoder passwordEncoder,
         UserRepository userRepository
     ) {
+        this.userVerificationTokenService = userVerificationTokenService;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.userNotificationService = userNotificationService;
         this.authenticationService = authenticationService;
         this.userLookupService = userLookupService;
         this.passwordEncoder = passwordEncoder;
@@ -43,9 +55,24 @@ public class UserService {
      * @param email The email address to lookup.
      *
      * @return The corresponding user.
+     *
+     * @throws NotFoundException If no user matching given email address is found.
      */
-    public Optional<User> getUserByEmail(String email) {
-        return this.userLookupService.getUserByEmail(email);
+    public User findByEmail(String email) {
+        return this.userLookupService.findByEmail(email);
+    }
+
+    /**
+     * Lookup a user given its unique id.
+     *
+     * @param id The user unique id.
+     *
+     * @return The corresponding user.
+     *
+     * @throws NotFoundException If no user matching given ID is found.
+     */
+    public User find(int id) {
+        return this.userLookupService.find(id);
     }
 
     /**
@@ -62,8 +89,8 @@ public class UserService {
         try {
             User user = userCreateDTO.toEntity();
             user.setPassword(this.passwordEncoder.encode(userCreateDTO.getPassword()));
-
             user = this.userRepository.saveAndFlush(user);
+            this.sendActivationEmail(user);
             this.applicationEventPublisher.publishEvent(new UserCreatedEvent(this, user));
             return user;
         } catch (DataIntegrityViolationException ex) {
@@ -82,5 +109,54 @@ public class UserService {
     public AuthenticationContract createAndAuthenticate(UserCreateDTO userCreateDTO) {
         this.create(userCreateDTO);
         return this.authenticationService.authenticate(userCreateDTO.toUserAuthDTO());
+    }
+
+    /**
+     * Activate a given user provided a valid verification token.
+     *
+     * @param userId The user to activate.
+     * @param userActivateDTO a DTO containing the verification token.
+     *
+     * @return The activated user.
+     *
+     * @throws VerificationTokenMismatchException If given verification token mismatch.
+     */
+    @Transactional
+    public User findAndActivate(int userId, UserActivateDTO userActivateDTO) {
+        User user = this.find(userId);
+        if ( !this.userVerificationTokenService.validate(user, userActivateDTO.getToken()) ){
+            throw new VerificationTokenMismatchException("Verification token mismatch.");
+        }
+        user = this.userRepository.save(userActivateDTO.hydrateEntity(user));
+        this.applicationEventPublisher.publishEvent(new UserActivatedEvent(this, user));
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        return user;
+    }
+
+    /**
+     * Lookup a user by email and then send him the activation email message.
+     *
+     * @param userResendActivationTokenDTO A DTO containing the user email address.
+     *
+     * @throws UserAlreadyActivatedException If given user has already been activated.
+     * @throws NotFoundException If no user matching given email address is found.
+     */
+    public void findAndSendActivationEmail(UserResendActivationTokenDTO userResendActivationTokenDTO) {
+        this.sendActivationEmail(this.findByEmail(userResendActivationTokenDTO.getEmail()));
+    }
+
+    /**
+     * Send the activation email message to the given user.
+     *
+     * @param user The user the email will be sent to.
+     *
+     * @throws UserAlreadyActivatedException If given user has already been activated.
+     */
+    public void sendActivationEmail(User user) {
+        if ( user.isActive() ) {
+            throw new UserAlreadyActivatedException("User already activated.");
+        }
+        String verificationToken = this.userVerificationTokenService.generate(user);
+        this.userNotificationService.sendSignupNotification(user, verificationToken);
     }
 }
