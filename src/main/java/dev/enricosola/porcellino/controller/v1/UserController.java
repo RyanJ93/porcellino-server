@@ -1,13 +1,11 @@
 package dev.enricosola.porcellino.controller.v1;
 
-import dev.enricosola.porcellino.dto.request.user.UserResendActivationTokenRequestDTO;
-import dev.enricosola.porcellino.dto.request.user.UserActivateRequestDTO;
-import dev.enricosola.porcellino.dto.request.user.UserSignupRequestDTO;
 import dev.enricosola.porcellino.response.user.SignupResponse;
 import dev.enricosola.porcellino.response.user.UserInfoResponse;
 import dev.enricosola.porcellino.service.AuthenticationService;
 import org.springframework.security.core.Authentication;
 import dev.enricosola.porcellino.service.UserService;
+import dev.enricosola.porcellino.dto.request.user.*;
 import dev.enricosola.porcellino.dto.user.UserDTO;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
@@ -57,6 +55,24 @@ public class UserController {
     @PostMapping("/@me/resend-activation-token")
     public ResponseEntity<Void> resendActivationToken(@Valid @RequestBody UserResendActivationTokenRequestDTO userResendActivationTokenRequestDTO) {
         this.userService.findAndSendActivationEmail(userResendActivationTokenRequestDTO.toServiceDTO());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Send a password-reset email to the user matching given email.
+     */
+    @PostMapping("/@me/request-password-reset")
+    public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody RequestPasswordResetRequestDTO requestPasswordResetRequestDTO) {
+        this.userService.requestPasswordReset(requestPasswordResetRequestDTO.toServiceDTO());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Reset the user's password using a given password reset token.
+     */
+    @PatchMapping("/@me/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody PasswordResetRequestDTO passwordResetRequestDTO) {
+        this.userService.resetPassword(passwordResetRequestDTO.toServiceDTO());
         return ResponseEntity.noContent().build();
     }
 }
