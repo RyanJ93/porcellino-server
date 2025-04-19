@@ -21,10 +21,12 @@ import org.springframework.context.annotation.Bean;
 @EnableMethodSecurity
 public class WebSecurityConfig {
     private static final String[] PUBLIC_ROUTE_LIST = {
-        "/api/v1/users/@me/resend-activation-token",
-        "/api/v1/users/signup",
-        "/api/v1/auth/**",
-        "/api/test/**"
+            "/api/v1/users/@me/resend-activation-token",
+            "/api/v1/users/@me/request-password-reset",
+            "/api/v1/users/@me/reset/password",
+            "/api/v1/users/signup",
+            "/api/v1/auth/**",
+            "/api/test/**"
     };
 
     private final UserDetailsServiceImpl userDetailsService;

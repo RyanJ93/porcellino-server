@@ -7,7 +7,7 @@ import dev.enricosola.porcellino.facades.App;
 import java.util.Map;
 
 public class SignupUserEmailNotification extends UserEmailNotification {
-    private static final String EMAIL_TEMPLATE_PATH = "mails/user_signup.html";
+    private static final String EMAIL_TEMPLATE_PATH = "mails/user/signup.html";
     private static final String EMAIL_SUBJECT = "Welcome to Porcellino!";
 
     private final String verificationToken;

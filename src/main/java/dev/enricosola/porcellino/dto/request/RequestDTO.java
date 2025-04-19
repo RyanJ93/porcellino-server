@@ -4,7 +4,7 @@ import dev.enricosola.porcellino.dto.DTO;
 
 public abstract class RequestDTO {
     /**
-     * Convert this DTO instance in another one that can be used in services.
+     * Convert this DTO instance to another one that can be used in services.
      *
      * @return The generated DTO for service interaction.
      */
