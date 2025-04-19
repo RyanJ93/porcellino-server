@@ -1,5 +1,3 @@
 package dev.enricosola.porcellino.response;
 
-public interface Response {
-
-}
+public interface Response {}

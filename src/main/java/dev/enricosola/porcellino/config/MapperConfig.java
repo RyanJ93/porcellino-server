@@ -2,7 +2,7 @@ package dev.enricosola.porcellino.config;
 
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Bean;
-import dev.enricosola.porcellino.dto.UserDTO;
+import dev.enricosola.porcellino.dto.user.UserDTO;
 import dev.enricosola.porcellino.entity.User;
 import org.modelmapper.PropertyMap;
 import org.modelmapper.ModelMapper;

@@ -29,10 +29,9 @@ public class PortfolioController {
     private final UserService userService;
     private final ModelMapper modelMapper;
 
-    private User getAuthenticatedUser(Authentication authentication){
+    private User getAuthenticatedUser(Authentication authentication) {
         UserDetails userDetails = (UserDetails)authentication.getPrincipal();
-        return this.userService.getUserByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new BadCredentialsException("Not authenticated."));
+        return this.userService.findByEmail(userDetails.getUsername());
     }
 
     public PortfolioController(PortfolioService portfolioService, UserService userService, ModelMapper modelMapper){

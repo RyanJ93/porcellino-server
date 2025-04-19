@@ -2,7 +2,7 @@ package dev.enricosola.porcellino.response.user;
 
 import dev.enricosola.porcellino.response.SuccessResponse;
 import dev.enricosola.porcellino.response.Response;
-import dev.enricosola.porcellino.dto.UserDTO;
+import dev.enricosola.porcellino.dto.user.UserDTO;
 import java.io.Serializable;
 import java.io.Serial;
 import lombok.Getter;

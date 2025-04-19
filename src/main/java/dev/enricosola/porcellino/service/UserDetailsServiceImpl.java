@@ -5,6 +5,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import dev.enricosola.porcellino.support.AuthenticatedUserDetails;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
+import dev.enricosola.porcellino.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
@@ -12,17 +13,19 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class UserDetailsServiceImpl implements UserDetailsService {
-    private final UserService userService;
+    private final UserLookupService userLookupService;
 
-    public UserDetailsServiceImpl(UserService userService){
-        this.userService = userService;
+    public UserDetailsServiceImpl(UserLookupService userLookupService) {
+        this.userLookupService = userLookupService;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return new AuthenticatedUserDetails(this.userService.getUserByEmail(username).orElseThrow(() -> {
-            log.info("Access denied for user \"" + username + "\": no matching user found.");
-            return new UsernameNotFoundException("No user matching the given email address found.");
-        }));
+        try {
+            return new AuthenticatedUserDetails(this.userLookupService.findByEmail(username));
+        } catch (NotFoundException ignored) {
+            log.info("Access denied for user \"{}\": no matching user found.", username);
+            throw new UsernameNotFoundException("No user matching the given email address found.");
+        }
     }
 }
