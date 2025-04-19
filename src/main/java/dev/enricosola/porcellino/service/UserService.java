@@ -1,12 +1,13 @@
 package dev.enricosola.porcellino.service;
 
+import dev.enricosola.porcellino.notifications.user.SignupUserEmailNotification;
 import dev.enricosola.porcellino.exception.VerificationTokenMismatchException;
 import dev.enricosola.porcellino.exception.DuplicateEmailAddressException;
+import dev.enricosola.porcellino.service.notification.NotificationService;
 import dev.enricosola.porcellino.exception.UserAlreadyActivatedException;
 import dev.enricosola.porcellino.dto.user.UserResendActivationTokenDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
-import dev.enricosola.porcellino.support.AuthenticationContract;
 import org.springframework.dao.DataIntegrityViolationException;
 import dev.enricosola.porcellino.exception.NotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
@@ -25,8 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 public class UserService {
     private final UserVerificationTokenService userVerificationTokenService;
     private final ApplicationEventPublisher applicationEventPublisher;
-    private final UserNotificationService userNotificationService;
-    private final AuthenticationService authenticationService;
+    private final NotificationService notificationService;
     private final UserLookupService userLookupService;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
@@ -34,16 +34,14 @@ public class UserService {
     public UserService(
         UserVerificationTokenService userVerificationTokenService,
         ApplicationEventPublisher applicationEventPublisher,
-        UserNotificationService userNotificationService,
-        AuthenticationService authenticationService,
+        NotificationService notificationService,
         UserLookupService userLookupService,
         PasswordEncoder passwordEncoder,
         UserRepository userRepository
     ) {
         this.userVerificationTokenService = userVerificationTokenService;
         this.applicationEventPublisher = applicationEventPublisher;
-        this.userNotificationService = userNotificationService;
-        this.authenticationService = authenticationService;
+        this.notificationService = notificationService;
         this.userLookupService = userLookupService;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
@@ -99,19 +97,6 @@ public class UserService {
     }
 
     /**
-     * Create a new user and then authenticate it.
-     *
-     * @param userCreateDTO A DTO containing user properties.
-     *
-     * @return An authentication contract holding both the authentication user and the generated JWT token.
-     */
-    @Transactional
-    public AuthenticationContract createAndAuthenticate(UserCreateDTO userCreateDTO) {
-        this.create(userCreateDTO);
-        return this.authenticationService.authenticate(userCreateDTO.toUserAuthDTO());
-    }
-
-    /**
      * Activate a given user provided a valid verification token.
      *
      * @param userId The user to activate.
@@ -152,11 +137,11 @@ public class UserService {
      *
      * @throws UserAlreadyActivatedException If given user has already been activated.
      */
-    public void sendActivationEmail(User user) {
+    private void sendActivationEmail(User user) {
         if ( user.isActive() ) {
             throw new UserAlreadyActivatedException("User already activated.");
         }
         String verificationToken = this.userVerificationTokenService.generate(user);
-        this.userNotificationService.sendSignupNotification(user, verificationToken);
+        this.notificationService.send(new SignupUserEmailNotification(user, verificationToken));
     }
 }

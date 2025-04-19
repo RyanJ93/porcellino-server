@@ -1,5 +1,6 @@
 package dev.enricosola.porcellino.entity;
 
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.springframework.data.annotation.LastModifiedDate;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import org.springframework.data.annotation.CreatedDate;
@@ -9,7 +10,6 @@ import java.io.Serial;
 import java.util.Date;
 import java.util.Set;
 import lombok.*;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 @Entity
 @Table(name = "users", uniqueConstraints = {

@@ -1,11 +1,10 @@
 package dev.enricosola.porcellino.controller.v1;
 
 import dev.enricosola.porcellino.dto.request.user.UserResendActivationTokenRequestDTO;
-import dev.enricosola.porcellino.response.user.AuthenticatedSignupResponse;
 import dev.enricosola.porcellino.dto.request.user.UserActivateRequestDTO;
 import dev.enricosola.porcellino.dto.request.user.UserSignupRequestDTO;
+import dev.enricosola.porcellino.response.user.SignupResponse;
 import dev.enricosola.porcellino.response.user.UserInfoResponse;
-import dev.enricosola.porcellino.support.AuthenticationContract;
 import dev.enricosola.porcellino.service.AuthenticationService;
 import org.springframework.security.core.Authentication;
 import dev.enricosola.porcellino.service.UserService;
@@ -29,10 +28,9 @@ public class UserController {
      * Perform user signup.
      */
     @PostMapping("/signup")
-    public ResponseEntity<AuthenticatedSignupResponse> signup(@Valid @RequestBody UserSignupRequestDTO userSignupRequestDTO) {
-        AuthenticationContract authenticationContract = this.userService.createAndAuthenticate(userSignupRequestDTO.toServiceDTO());
-        UserDTO userDTO = UserDTO.fromEntity(authenticationContract.getUser());
-        return ResponseEntity.ok().body(new AuthenticatedSignupResponse(userDTO, authenticationContract.getToken()));
+    public ResponseEntity<SignupResponse> signup(@Valid @RequestBody UserSignupRequestDTO userSignupRequestDTO) {
+        UserDTO userDTO = UserDTO.fromEntity(this.userService.create(userSignupRequestDTO.toServiceDTO()));
+        return ResponseEntity.ok().body(new SignupResponse(userDTO));
     }
 
     /**
