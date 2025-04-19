@@ -44,13 +44,13 @@ public class UserService {
     }
 
     /**
-     * Lookup a user given its email.
+     * Look up a user given its email.
      *
      * @param email The email address to lookup.
      *
      * @return The corresponding user.
      *
-     * @throws NotFoundException If no user matching given email address is found.
+     * @throws NotFoundException If no user matching the given email address is found.
      */
     public User findByEmail(String email) {
         return this.userLookupService.findByEmail(email);
@@ -86,6 +86,7 @@ public class UserService {
             user = this.userRepository.saveAndFlush(user);
             this.sendActivationEmail(user);
             this.applicationEventPublisher.publishEvent(new UserCreatedEvent(this, user));
+            log.info("Created new user with ID \"{}\"", user.getId());
             return user;
         } catch (DataIntegrityViolationException ex) {
             throw new DuplicateEmailAddressException("Email address already in use.", ex);
@@ -111,11 +112,12 @@ public class UserService {
         user = this.userRepository.save(userActivateDTO.hydrateEntity(user));
         this.applicationEventPublisher.publishEvent(new UserActivatedEvent(this, user));
         this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        log.info("Activated user \"{}\"", user.getId());
         return user;
     }
 
     /**
-     * Lookup a user by email and then send him the activation email message.
+     * Look up a user by email and then send him the activation email message.
      *
      * @param userResendActivationTokenDTO A DTO containing the user email address.
      *
@@ -163,7 +165,7 @@ public class UserService {
      *
      * @param user The user the email will be sent to.
      *
-     * @throws UserAlreadyActivatedException If given user has already been activated.
+     * @throws UserAlreadyActivatedException If the given user has already been activated.
      */
     private void sendActivationEmail(User user) {
         if ( user.isActive() ) {
@@ -171,5 +173,6 @@ public class UserService {
         }
         String verificationToken = this.userVerificationTokenService.generate(user);
         this.notificationService.send(new SignupUserEmailNotification(user, verificationToken));
+        log.info("Sent activation email to user \"{}\"", user.getId());
     }
 }
