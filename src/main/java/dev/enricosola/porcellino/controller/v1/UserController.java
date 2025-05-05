@@ -1,8 +1,8 @@
 package dev.enricosola.porcellino.controller.v1;
 
-import dev.enricosola.porcellino.response.user.SignupResponse;
 import dev.enricosola.porcellino.response.user.UserInfoResponse;
 import dev.enricosola.porcellino.service.AuthenticationService;
+import dev.enricosola.porcellino.response.user.SignupResponse;
 import org.springframework.security.core.Authentication;
 import dev.enricosola.porcellino.service.UserService;
 import dev.enricosola.porcellino.dto.request.user.*;
@@ -59,7 +59,7 @@ public class UserController {
     }
 
     /**
-     * Send a password-reset email to the user matching given email.
+     * Send a password-reset email to the user matching a given email.
      */
     @PostMapping("/@me/request-password-reset")
     public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody RequestPasswordResetRequestDTO requestPasswordResetRequestDTO) {

@@ -1,5 +1,6 @@
 package dev.enricosola.porcellino.dto.request.user;
 
+import dev.enricosola.porcellino.dto.ClientInfoDTO;
 import dev.enricosola.porcellino.dto.request.RequestDTO;
 import dev.enricosola.porcellino.dto.user.UserAuthDTO;
 import jakarta.validation.constraints.NotBlank;
@@ -22,7 +23,15 @@ public class UserAuthRequestDTO extends RequestDTO {
     /**
      * {@inheritDoc}
      */
+    @Override
     public UserAuthDTO toServiceDTO() {
-        return new UserAuthDTO(this.email, this.password);
+        return new UserAuthDTO(this.email, this.password, null);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public UserAuthDTO toServiceDTO(ClientInfoDTO clientInfoDTO) {
+        return new UserAuthDTO(this.email, this.password, clientInfoDTO);
     }
 }
