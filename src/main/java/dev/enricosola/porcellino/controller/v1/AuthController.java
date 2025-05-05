@@ -1,15 +1,24 @@
 package dev.enricosola.porcellino.controller.v1;
 
+import dev.enricosola.porcellino.dto.request.auth.AccessTokenRefreshRequestDTO;
+import dev.enricosola.porcellino.dto.response.auth.TokenRefreshResponseDTO;
 import dev.enricosola.porcellino.dto.request.user.UserAuthRequestDTO;
+import dev.enricosola.porcellino.dto.response.auth.LoginResponseDTO;
 import dev.enricosola.porcellino.support.AuthenticationContract;
 import dev.enricosola.porcellino.service.AuthenticationService;
-import dev.enricosola.porcellino.response.auth.LoginResponse;
-import dev.enricosola.porcellino.response.auth.RenewResponse;
-import org.springframework.security.core.Authentication;
+import org.springframework.web.server.ResponseStatusException;
+import dev.enricosola.porcellino.support.AuthTokenKeychain;
+import dev.enricosola.porcellino.facades.UserTokenStorage;
+import dev.enricosola.porcellino.dto.UserTokenResponseDTO;
+import dev.enricosola.porcellino.dto.user.UserAuthDTO;
+import dev.enricosola.porcellino.dto.ClientInfoDTO;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
-import dev.enricosola.porcellino.dto.user.UserDTO;
+import org.springframework.http.HttpStatus;
 import jakarta.validation.Valid;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -21,22 +30,70 @@ public class AuthController {
         this.authenticationService = authenticationService;
     }
 
+
     /**
      * Perform user authentication.
      */
     @PostMapping("/login")
-    public ResponseEntity<LoginResponse> login(@Valid @RequestBody UserAuthRequestDTO userAuthRequestDTO){
-        AuthenticationContract authenticationContract = this.authenticationService.authenticate(userAuthRequestDTO.toServiceDTO());
-        UserDTO userDTO = UserDTO.fromEntity(authenticationContract.getUser());
-        return ResponseEntity.ok().body(new LoginResponse(userDTO, authenticationContract.getToken()));
+    public ResponseEntity<LoginResponseDTO> login(
+            @RequestParam(required = false, defaultValue = "false") boolean useCookies,
+            @Valid @RequestBody UserAuthRequestDTO userAuthRequestDTO,
+            HttpServletResponse httpServletResponse,
+            HttpServletRequest httpServletRequest
+    ) {
+        UserAuthDTO userAuthDTO = userAuthRequestDTO.toServiceDTO(ClientInfoDTO.buildFromHttpRequest(httpServletRequest));
+        AuthenticationContract authenticationContract = this.authenticationService.authenticate(userAuthDTO);
+        AuthTokenKeychain authTokenKeychain = authenticationContract.getAuthTokenKeychain();
+        if (useCookies) {
+            UserTokenStorage.attachToResponse(httpServletResponse, authTokenKeychain);
+        }
+        return ResponseEntity.ok().body(new LoginResponseDTO(
+                UserTokenResponseDTO.fromUserTokenDTO(authTokenKeychain.getAccessToken()),
+                UserTokenResponseDTO.fromUserTokenDTO(authTokenKeychain.getRefreshToken())
+        ));
     }
 
     /**
      * Renew JWT token being used.
      */
-    @GetMapping("/renew")
-    public ResponseEntity<RenewResponse> renew(Authentication authentication){
-        String token = this.authenticationService.renew(authentication);
-        return ResponseEntity.ok().body(new RenewResponse(token));
+    @PatchMapping("/refresh")
+    public ResponseEntity<TokenRefreshResponseDTO> refresh(
+            @Valid @RequestBody AccessTokenRefreshRequestDTO accessTokenRefreshRequestDTO,
+            @RequestParam(required = false, defaultValue = "false") boolean useCookies,
+            HttpServletResponse httpServletResponse,
+            HttpServletRequest httpServletRequest
+    ) {
+        String refreshToken = Optional.ofNullable(accessTokenRefreshRequestDTO.getRefreshToken())
+                .orElse(UserTokenStorage.getRefreshTokenFromRequest(httpServletRequest));
+        if ( refreshToken == null || refreshToken.isBlank() ){
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token.");
+        }
+        AuthTokenKeychain authTokenKeychain = this.authenticationService.refreshAccessToken(refreshToken, true);
+        if (useCookies) {
+            UserTokenStorage.attachToResponse(httpServletResponse, authTokenKeychain);
+        }
+        return ResponseEntity.ok().body(new TokenRefreshResponseDTO(
+                UserTokenResponseDTO.fromUserTokenDTO(authTokenKeychain.getAccessToken()),
+                UserTokenResponseDTO.fromUserTokenDTO(authTokenKeychain.getRefreshToken())
+        ));
+    }
+
+    @DeleteMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @Valid @RequestBody AccessTokenRefreshRequestDTO accessTokenRefreshRequestDTO,
+            @RequestParam(required = false, defaultValue = "false") boolean useCookies,
+            HttpServletResponse httpServletResponse,
+            HttpServletRequest httpServletRequest
+    ) {
+        String refreshToken = Optional.ofNullable(accessTokenRefreshRequestDTO.getRefreshToken())
+                .orElse(UserTokenStorage.getRefreshTokenFromRequest(httpServletRequest));
+        if ( refreshToken == null || refreshToken.isBlank() ){
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid refresh token.");
+        }
+        this.authenticationService.revoke(refreshToken);
+        if (useCookies) {
+            UserTokenStorage.dropFromResponse(httpServletResponse);
+        }
+        return ResponseEntity.noContent().build();
     }
 }

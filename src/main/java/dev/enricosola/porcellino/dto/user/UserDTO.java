@@ -7,7 +7,7 @@ import lombok.Data;
 @AllArgsConstructor
 @Data
 public class UserDTO {
-    public static UserDTO fromEntity(User user){
+    public static UserDTO fromEntity(User user) {
         return new UserDTO(user.getId(), user.getEmail());
     }
 

@@ -6,9 +6,13 @@ import org.springframework.security.core.GrantedAuthority;
 import dev.enricosola.porcellino.entity.User;
 import java.util.Collection;
 import java.util.ArrayList;
+import java.io.Serial;
 import java.util.List;
 
 public class AuthenticatedUserDetails implements UserDetails {
+    @Serial
+    private static final long serialVersionUID = -2775752286304597674L;
+
     private List<GrantedAuthority> authorityList;
     private final String username;
     private final String password;

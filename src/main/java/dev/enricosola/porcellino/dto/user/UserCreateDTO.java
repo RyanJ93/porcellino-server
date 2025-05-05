@@ -14,8 +14,4 @@ public class UserCreateDTO extends EntityDTO<User> {
     public User toEntity() {
         return this.hydrateEntity(new User());
     }
-
-    public UserAuthDTO toUserAuthDTO() {
-        return new UserAuthDTO(this.email, this.password);
-    }
 }
