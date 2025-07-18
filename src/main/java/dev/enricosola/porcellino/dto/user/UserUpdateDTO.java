@@ -8,7 +8,8 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public class UserUpdateDTO extends EntityDTO<User> {
-    private String email;
+    private String surname;
+    private String name;
 
     /**
      * {@inheritDoc}

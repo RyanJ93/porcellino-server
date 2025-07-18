@@ -136,6 +136,21 @@ public class UserService {
     }
 
     /**
+     * Finds a user by the provided ID and then updates the user's information.
+     *
+     * @param id the ID of the user to be updated.
+     * @param userUpdateDTO an object containing the updated information for the user.
+     * @return the updated user object after saving to the repository.
+     */
+    public User findAndUpdate(int id, UserUpdateDTO userUpdateDTO) {
+        User user = this.userLookupService.find(id);
+        user = userUpdateDTO.hydrateEntity(user);
+        this.userRepository.save(user);
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        return user;
+    }
+
+    /**
      * Send the reset password email message to the given user.
      *
      * @param requestPasswordResetDTO A DTO containing the user email address.

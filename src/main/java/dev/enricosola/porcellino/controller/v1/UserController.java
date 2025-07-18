@@ -141,4 +141,17 @@ public class UserController {
         this.userService.disable2FA(user.getId(), disableTwoFactorAuthRequestDTO.toServiceDTO());
         return ResponseEntity.noContent().build();
     }
+
+    /**
+     * Update user information.
+     */
+    @PutMapping("/@me")
+    public ResponseEntity<UserResponseDTO> update(
+            @Valid @RequestBody UserUpdateRequestDTO userUpdateRequestDTO,
+            Authentication authentication
+    ) {
+        User user = this.authenticationService.getAuthenticatedUser(authentication);
+        user = this.userService.findAndUpdate(user.getId(), userUpdateRequestDTO.toServiceDTO());
+        return ResponseEntity.ok().body(new UserResponseDTO(user));
+    }
 }

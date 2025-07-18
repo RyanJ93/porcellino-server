@@ -1,0 +1,3 @@
+ALTER TABLE users
+    ADD name    VARCHAR(255) DEFAULT NULL AFTER email,
+    ADD surname VARCHAR(255) DEFAULT NULL AFTER name;
