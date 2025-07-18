@@ -1,5 +1,7 @@
 package dev.enricosola.porcellino.controller.v1;
 
+import dev.enricosola.porcellino.dto.request.auth.TwoFactorRecoveryCodeChallengeRequestDTO;
+import dev.enricosola.porcellino.dto.request.auth.TwoFactorCodeChallengeRequestDTO;
 import dev.enricosola.porcellino.dto.request.auth.AccessTokenRefreshRequestDTO;
 import dev.enricosola.porcellino.dto.response.auth.TokenRefreshResponseDTO;
 import dev.enricosola.porcellino.dto.request.user.UserAuthRequestDTO;
@@ -10,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import dev.enricosola.porcellino.support.AuthTokenKeychain;
 import dev.enricosola.porcellino.facades.UserTokenStorage;
 import dev.enricosola.porcellino.dto.UserTokenResponseDTO;
+import org.springframework.security.core.Authentication;
 import dev.enricosola.porcellino.dto.user.UserAuthDTO;
 import dev.enricosola.porcellino.dto.ClientInfoDTO;
 import org.springframework.web.bind.annotation.*;
@@ -54,6 +57,58 @@ public class AuthController {
     }
 
     /**
+     * Validate the provided two-factor authentication code and generate new access and refresh tokens if successful.
+     */
+    @PostMapping("/2fa/challenge")
+    public ResponseEntity<LoginResponseDTO> challenge2FA(
+            @Valid @RequestBody TwoFactorCodeChallengeRequestDTO twoFactorChallengeRequestDTO,
+            @RequestParam(required = false, defaultValue = "false") boolean useCookies,
+            HttpServletResponse httpServletResponse,
+            HttpServletRequest httpServletRequest,
+            Authentication authentication
+    ) {
+        ClientInfoDTO clientInfoDTO = ClientInfoDTO.buildFromHttpRequest(httpServletRequest);
+        AuthenticationContract authenticationContract = this.authenticationService.challenge2FACode(
+                this.authenticationService.getAuthenticatedUser(authentication).getId(),
+                twoFactorChallengeRequestDTO.toServiceDTO(clientInfoDTO)
+        );
+        AuthTokenKeychain authTokenKeychain = authenticationContract.getAuthTokenKeychain();
+        if (useCookies) {
+            UserTokenStorage.attachToResponse(httpServletResponse, authTokenKeychain);
+        }
+        return ResponseEntity.ok().body(new LoginResponseDTO(
+                UserTokenResponseDTO.fromUserTokenDTO(authTokenKeychain.getAccessToken()),
+                UserTokenResponseDTO.fromUserTokenDTO(authTokenKeychain.getRefreshToken())
+        ));
+    }
+
+    /**
+     * Validate the provided two-factor recovery code and generate new access and refresh tokens if successful.
+     */
+    @PostMapping("/2fa/challenge-recovery")
+    public ResponseEntity<LoginResponseDTO> challenge2FARecovery(
+            @Valid @RequestBody TwoFactorRecoveryCodeChallengeRequestDTO twoFactorRecoveryCodeChallengeRequestDTO,
+            @RequestParam(required = false, defaultValue = "false") boolean useCookies,
+            HttpServletResponse httpServletResponse,
+            HttpServletRequest httpServletRequest,
+            Authentication authentication
+    ) {
+        ClientInfoDTO clientInfoDTO = ClientInfoDTO.buildFromHttpRequest(httpServletRequest);
+        AuthenticationContract authenticationContract = this.authenticationService.challenge2FARecoveryCode(
+                this.authenticationService.getAuthenticatedUser(authentication).getId(),
+                twoFactorRecoveryCodeChallengeRequestDTO.toServiceDTO(clientInfoDTO)
+        );
+        AuthTokenKeychain authTokenKeychain = authenticationContract.getAuthTokenKeychain();
+        if (useCookies) {
+            UserTokenStorage.attachToResponse(httpServletResponse, authTokenKeychain);
+        }
+        return ResponseEntity.ok().body(new LoginResponseDTO(
+                UserTokenResponseDTO.fromUserTokenDTO(authTokenKeychain.getAccessToken()),
+                UserTokenResponseDTO.fromUserTokenDTO(authTokenKeychain.getRefreshToken())
+        ));
+    }
+
+    /**
      * Renew JWT token being used.
      */
     @PatchMapping("/refresh")
@@ -78,6 +133,9 @@ public class AuthController {
         ));
     }
 
+    /**
+     * Perform user logout, revoking the provided or extracted refresh token and removing it from cookies if required.
+     */
     @DeleteMapping("/logout")
     public ResponseEntity<Void> logout(
             @Valid @RequestBody AccessTokenRefreshRequestDTO accessTokenRefreshRequestDTO,

@@ -1,0 +1,3 @@
+ALTER TABLE users
+    ADD COLUMN 2fa_secret     VARCHAR(256) DEFAULT NULL AFTER active,
+    ADD COLUMN 2fa_enabled_at TIMESTAMP    DEFAULT NULL AFTER 2fa_secret;

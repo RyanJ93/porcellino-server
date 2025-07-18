@@ -1,14 +1,20 @@
 package dev.enricosola.porcellino.controller.v1;
 
+import dev.enricosola.porcellino.dto.TwoFactorAuthRecoveryCodeCollectionDTO;
+import dev.enricosola.porcellino.dto.TwoFactorAuthSetupWithQRCodeDTO;
+import dev.enricosola.porcellino.dto.user.EnableTwoFactorAuthDTO;
 import dev.enricosola.porcellino.response.user.UserInfoResponse;
 import dev.enricosola.porcellino.service.AuthenticationService;
 import dev.enricosola.porcellino.response.user.SignupResponse;
+import dev.enricosola.porcellino.dto.TwoFactorAuthSetupDTO;
 import org.springframework.security.core.Authentication;
+import dev.enricosola.porcellino.dto.response.user.*;
 import dev.enricosola.porcellino.service.UserService;
 import dev.enricosola.porcellino.dto.request.user.*;
 import dev.enricosola.porcellino.dto.user.UserDTO;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import dev.enricosola.porcellino.entity.User;
 import jakarta.validation.Valid;
 
 @RestController
@@ -73,6 +79,66 @@ public class UserController {
     @PatchMapping("/@me/reset-password")
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody PasswordResetRequestDTO passwordResetRequestDTO) {
         this.userService.resetPassword(passwordResetRequestDTO.toServiceDTO());
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Set up two-factor authentication.
+     */
+    @PostMapping("/@me/2fa/setup")
+    public ResponseEntity<BaseTwoFactorAuthSetupResponseDTO> setup2FA(
+            @RequestParam(required = false, defaultValue = "false") boolean withQRCode,
+            Authentication authentication
+    ) {
+        User user = this.authenticationService.getAuthenticatedUser(authentication);
+        BaseTwoFactorAuthSetupResponseDTO baseTwoFactorAuthSetupResponseDTO;
+        if (withQRCode) {
+            TwoFactorAuthSetupWithQRCodeDTO twoFactorAuthSetupWithQRCodeDTO = this.userService.setup2FAWithQRCode(user.getId());
+            baseTwoFactorAuthSetupResponseDTO = TwoFactorAuthSetupWithQRCodeResponseDTO.fromTwoFactorAuthSetupWithQRCodeDTO(twoFactorAuthSetupWithQRCodeDTO);
+        } else {
+            TwoFactorAuthSetupDTO twoFactorAuthSetupDTO = this.userService.setup2FA(user.getId());
+            baseTwoFactorAuthSetupResponseDTO = TwoFactorAuthSetupResponseDTO.fromTwoFactorAuthSetupDTO(twoFactorAuthSetupDTO);
+        }
+        return ResponseEntity.ok().body(baseTwoFactorAuthSetupResponseDTO);
+    }
+
+    /**
+     * Enable two-factor authentication.
+     */
+    @PatchMapping("/@me/2fa/enable")
+    public ResponseEntity<EnableTwoFactorAuthResponseDTO> enable2FA(
+            @Valid @RequestBody EnableTwoFactorAuthRequestDTO enableTwoFactorAuthRequestDTO,
+            Authentication authentication
+    ) {
+        EnableTwoFactorAuthDTO enableTwoFactorAuthDTO = enableTwoFactorAuthRequestDTO.toServiceDTO();
+        User user = this.authenticationService.getAuthenticatedUser(authentication);
+        TwoFactorAuthRecoveryCodeCollectionDTO twoFactorAuthRecoveryCodeCollectionDTO = this.userService.enable2FA(user.getId(), enableTwoFactorAuthDTO);
+        return ResponseEntity.ok().body(EnableTwoFactorAuthResponseDTO.fromTwoFactorAuthRecoveryCodeCollectionDTO(twoFactorAuthRecoveryCodeCollectionDTO));
+    }
+
+    /**
+     * Rotates the 2-factor authentication recovery codes for a given user and returns a new set of codes.
+     */
+    @PostMapping("/@me/2fa/rotate")
+    public ResponseEntity<RotateTwoFactorAuthRecoveryCodesResponseDTO> rotate2FARecoveryCodes(
+            @Valid @RequestBody RotateTwoFactorAuthRecoveryCodesRequestDTO rotateTwoFactorAuthRecoveryCodesRequestDTO,
+            Authentication authentication
+    ) {
+        User user = this.authenticationService.getAuthenticatedUser(authentication);
+        TwoFactorAuthRecoveryCodeCollectionDTO twoFactorAuthRecoveryCodeCollectionDTO = this.userService.rotate2FARecoveryCodes(user.getId(), rotateTwoFactorAuthRecoveryCodesRequestDTO.toServiceDTO());
+        return ResponseEntity.ok().body(RotateTwoFactorAuthRecoveryCodesResponseDTO.fromTwoFactorAuthRecoveryCodeCollectionDTO(twoFactorAuthRecoveryCodeCollectionDTO));
+    }
+
+    /**
+     * Disable two-factor authentication.
+     */
+    @PatchMapping("/@me/2fa/disable")
+    public ResponseEntity<Void> disable2FA(
+            @Valid @RequestBody DisableTwoFactorAuthRequestDTO disableTwoFactorAuthRequestDTO,
+            Authentication authentication
+    ) {
+        User user = this.authenticationService.getAuthenticatedUser(authentication);
+        this.userService.disable2FA(user.getId(), disableTwoFactorAuthRequestDTO.toServiceDTO());
         return ResponseEntity.noContent().build();
     }
 }

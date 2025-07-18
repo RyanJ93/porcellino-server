@@ -89,9 +89,11 @@ public class UserTokenStorage {
      * @return the cookie with the specified name, or null if no such cookie is found.
      */
     private static Cookie findCookieByName(String name, HttpServletRequest httpServletRequest) {
-        for ( Cookie cookie : httpServletRequest.getCookies() ){
-            if ( cookie.getName().equals(name) ){
-                return cookie;
+        if ( httpServletRequest.getCookies() != null ){
+            for ( Cookie cookie : httpServletRequest.getCookies() ){
+                if ( cookie.getName().equals(name) ){
+                    return cookie;
+                }
             }
         }
         return null;

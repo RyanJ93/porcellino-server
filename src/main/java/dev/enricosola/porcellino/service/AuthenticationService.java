@@ -1,5 +1,9 @@
 package dev.enricosola.porcellino.service;
 
+import dev.enricosola.porcellino.dto.ClientInfoDTO;
+import dev.enricosola.porcellino.dto.auth.TwoFactorCodeChallengeDTO;
+import dev.enricosola.porcellino.dto.auth.TwoFactorRecoveryCodeChallengeDTO;
+import dev.enricosola.porcellino.exception.NotEnabledTwoFactorAuthException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -28,24 +32,31 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class AuthenticationService {
-    protected static final String[] AUTHENTICATION_SCOPES = {"auth"};
+    protected static final String[] TWO_FACTOR_AUTH_SCOPES = {"2fa"};
+    protected static final String[] AUTH_SCOPES = {"auth"};
 
     protected final ApplicationEventPublisher applicationEventPublisher;
     protected final AuthenticationManager authenticationManager;
+    protected final TwoFactorAuthService twoFactorAuthService;
     protected final RefreshTokenService refreshTokenService;
+    protected final RecoveryCodeService recoveryCodeService;
     protected final AccessTokenService accessTokenService;
     protected final UserLookupService userLookupService;
 
     public AuthenticationService(
             ApplicationEventPublisher applicationEventPublisher,
             AuthenticationManager authenticationManager,
+            TwoFactorAuthService twoFactorAuthService,
             RefreshTokenService refreshTokenService,
+            RecoveryCodeService recoveryCodeService,
             AccessTokenService accessTokenService,
             UserLookupService userLookupService
     ) {
         this.applicationEventPublisher = applicationEventPublisher;
         this.authenticationManager = authenticationManager;
+        this.twoFactorAuthService = twoFactorAuthService;
         this.refreshTokenService = refreshTokenService;
+        this.recoveryCodeService = recoveryCodeService;
         this.accessTokenService = accessTokenService;
         this.userLookupService = userLookupService;
     }
@@ -60,21 +71,15 @@ public class AuthenticationService {
     @Transactional
     public AuthenticationContract authenticate(UserAuthDTO userAuthDTO) {
         try {
-            String email = userAuthDTO.getEmail(), password = userAuthDTO.getPassword();
-            User user = this.userLookupService.findActiveUserByEmail(email);
-
-            UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(email, password);
-            Authentication authentication = this.authenticationManager.authenticate(authenticationToken);
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            AuthTokenKeychain authTokenKeychain = new AuthTokenKeychain(
-                    this.refreshTokenService.generate(user, AuthenticationService.AUTHENTICATION_SCOPES, null, userAuthDTO.getClientInfoDTO()),
-                    this.accessTokenService.generate(user, AuthenticationService.AUTHENTICATION_SCOPES, null)
-            );
-
-            this.applicationEventPublisher.publishEvent(new AuthCompletedEvent(this, user));
-            log.info("Successfully authenticated user \"{}\".", user.getId());
-            return new AuthenticationContract(user, authTokenKeychain);
+            User user = this.userLookupService.findActiveUserByEmail(userAuthDTO.getEmail());
+            String[] scopes = user.is2FAEnabled() ? AuthenticationService.TWO_FACTOR_AUTH_SCOPES : AuthenticationService.AUTH_SCOPES;
+            AuthenticatedUserDetails authenticatedUserDetails = new AuthenticatedUserDetails(user);
+            Authentication authentication = this.authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                    authenticatedUserDetails,
+                    userAuthDTO.getPassword(),
+                    authenticatedUserDetails.getAuthorities()
+            ));
+            return this.finalizeAuthentication(authentication, user, scopes, userAuthDTO.getClientInfoDTO());
         } catch (AuthenticationException ex) {
             this.applicationEventPublisher.publishEvent(new AuthFailedEvent(this, AuthFailReason.INVALID_CREDENTIALS, userAuthDTO.getEmail()));
             log.info("Failed authentication attempt while authenticating user \"{}\" (INVALID_CREDENTIALS).", userAuthDTO.getEmail());
@@ -88,6 +93,39 @@ public class AuthenticationService {
             log.info("Failed authentication attempt while authenticating user \"{}\" (USER_NOT_FOUND).", userAuthDTO.getEmail());
             throw new UsernameNotFoundException("No user matching the given email address found.", ex);
         }
+    }
+
+    /**
+     *
+     */
+    public AuthenticationContract challenge2FACode(int userId, TwoFactorCodeChallengeDTO twoFactorCodeChallengeDTO) {
+        User user = this.userLookupService.find(userId);
+        if ( !user.is2FAEnabled() ) {
+            throw new NotEnabledTwoFactorAuthException("2FA is not enabled.");
+        }
+        this.twoFactorAuthService.check(user.getTwoFactorAuthSecret(), twoFactorCodeChallengeDTO.getCode());
+        AuthenticatedUserDetails authenticatedUserDetails = new AuthenticatedUserDetails(user);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                authenticatedUserDetails,
+                null,
+                authenticatedUserDetails.getAuthorities()
+        );
+        return this.finalizeAuthentication(authentication, user, AuthenticationService.AUTH_SCOPES, twoFactorCodeChallengeDTO.getClientInfoDTO());
+    }
+
+    public AuthenticationContract challenge2FARecoveryCode(int userId, TwoFactorRecoveryCodeChallengeDTO twoFactorRecoveryCodeChallengeDTO) {
+        User user = this.userLookupService.find(userId);
+        if ( !user.is2FAEnabled() ) {
+            throw new NotEnabledTwoFactorAuthException("2FA is not enabled.");
+        }
+        this.recoveryCodeService.findByCodeAndInvalidate(userId, twoFactorRecoveryCodeChallengeDTO.getRecoveryCode());
+        AuthenticatedUserDetails authenticatedUserDetails = new AuthenticatedUserDetails(user);
+        Authentication authentication = new UsernamePasswordAuthenticationToken(
+                authenticatedUserDetails,
+                null,
+                authenticatedUserDetails.getAuthorities()
+        );
+        return this.finalizeAuthentication(authentication, user, AuthenticationService.AUTH_SCOPES, twoFactorRecoveryCodeChallengeDTO.getClientInfoDTO());
     }
 
     /**
@@ -140,5 +178,16 @@ public class AuthenticationService {
         this.refreshTokenService.findAndDelete(refreshToken);
         this.applicationEventPublisher.publishEvent(new AuthRevokedEvent(this, user));
         log.info("Revoked refresh token for user \"{}\".", user.getId());
+    }
+
+    protected AuthenticationContract finalizeAuthentication(Authentication authentication, User user, String[] scopes, ClientInfoDTO clientInfoDTO) {
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        AuthTokenKeychain authTokenKeychain = new AuthTokenKeychain(
+                this.refreshTokenService.generate(user, scopes, null, clientInfoDTO),
+                this.accessTokenService.generate(user, scopes, null)
+        );
+        this.applicationEventPublisher.publishEvent(new AuthCompletedEvent(this, user));
+        log.info("Successfully authenticated user \"{}\".", user.getId());
+        return new AuthenticationContract(user, authTokenKeychain);
     }
 }
