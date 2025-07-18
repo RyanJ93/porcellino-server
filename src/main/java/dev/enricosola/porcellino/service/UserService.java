@@ -1,5 +1,6 @@
 package dev.enricosola.porcellino.service;
 
+import dev.enricosola.porcellino.dto.request.user.PasswordUpdateRequestDTO;
 import dev.enricosola.porcellino.notifications.user.PasswordResetUserEmailNotification;
 import dev.enricosola.porcellino.notifications.user.SignupUserEmailNotification;
 import dev.enricosola.porcellino.dto.TwoFactorAuthRecoveryCodeCollectionDTO;
@@ -145,6 +146,27 @@ public class UserService {
     public User findAndUpdate(int id, UserUpdateDTO userUpdateDTO) {
         User user = this.userLookupService.find(id);
         user = userUpdateDTO.hydrateEntity(user);
+        this.userRepository.save(user);
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        return user;
+    }
+
+    /**
+     * Finds a user by the given ID, verifies the old password, updates the password
+     * to the new one, and persists the updated user information to the repository.
+     * An event is published upon successful update.
+     *
+     * @param id The ID of the user whose password is to be updated.
+     * @param passwordUpdateDTO The DTO containing the old password for verification and the new password for updating the user's credentials.
+     * @return The updated User object with the new password saved.
+     * @throws PasswordMismatchException If the provided old password does not match the current password.
+     */
+    public User findAndUpdatePassword(int id, PasswordUpdateDTO passwordUpdateDTO) {
+        User user = this.userLookupService.find(id);
+        if ( !this.passwordEncoder.matches(passwordUpdateDTO.getOldPassword(), user.getPassword()) ){
+            throw new PasswordMismatchException("Old password does not match current password.");
+        }
+        user.setPassword(this.passwordEncoder.encode(passwordUpdateDTO.getNewPassword()));
         this.userRepository.save(user);
         this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
         return user;

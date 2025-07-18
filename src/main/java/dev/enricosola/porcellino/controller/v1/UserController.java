@@ -154,4 +154,14 @@ public class UserController {
         user = this.userService.findAndUpdate(user.getId(), userUpdateRequestDTO.toServiceDTO());
         return ResponseEntity.ok().body(new UserResponseDTO(user));
     }
+
+    @PatchMapping("/@me/password")
+    public ResponseEntity<UserResponseDTO> updatePassword(
+            @Valid @RequestBody PasswordUpdateRequestDTO passwordUpdateRequestDTO,
+            Authentication authentication
+    ) {
+        User user = this.authenticationService.getAuthenticatedUser(authentication);
+        user = this.userService.findAndUpdatePassword(user.getId(), passwordUpdateRequestDTO.toServiceDTO());
+        return ResponseEntity.ok().body(new UserResponseDTO(user));
+    }
 }
