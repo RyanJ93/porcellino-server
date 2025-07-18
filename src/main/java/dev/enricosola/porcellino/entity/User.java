@@ -37,6 +37,12 @@ public class User implements Serializable {
     @Column(name = "active")
     private boolean active;
 
+    @Column(name = "2fa_secret")
+    private String twoFactorAuthSecret;
+
+    @Column(name = "2fa_enabled_at")
+    private Date twoFactorAuthEnabledAt;
+
     @Column(name = "created_at")
     @CreatedDate
     private Date createdAt;
@@ -48,4 +54,8 @@ public class User implements Serializable {
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")
     @JsonBackReference
     private Set<Portfolio> portfolios;
+
+    public boolean is2FAEnabled() {
+        return this.twoFactorAuthEnabledAt != null;
+    }
 }

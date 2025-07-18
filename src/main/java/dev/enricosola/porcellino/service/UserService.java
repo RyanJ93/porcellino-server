@@ -2,12 +2,15 @@ package dev.enricosola.porcellino.service;
 
 import dev.enricosola.porcellino.notifications.user.PasswordResetUserEmailNotification;
 import dev.enricosola.porcellino.notifications.user.SignupUserEmailNotification;
+import dev.enricosola.porcellino.dto.TwoFactorAuthRecoveryCodeCollectionDTO;
 import dev.enricosola.porcellino.service.notification.NotificationService;
+import dev.enricosola.porcellino.dto.TwoFactorAuthSetupWithQRCodeDTO;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.context.ApplicationEventPublisher;
 import dev.enricosola.porcellino.events.UserActivatedEvent;
+import dev.enricosola.porcellino.dto.TwoFactorAuthSetupDTO;
 import dev.enricosola.porcellino.repository.UserRepository;
 import dev.enricosola.porcellino.events.UserCreatedEvent;
 import dev.enricosola.porcellino.events.UserUpdatedEvent;
@@ -16,12 +19,14 @@ import dev.enricosola.porcellino.entity.User;
 import dev.enricosola.porcellino.exception.*;
 import dev.enricosola.porcellino.dto.user.*;
 import lombok.extern.slf4j.Slf4j;
+import java.util.Date;
 
 @Service
 @Slf4j
 public class UserService {
     private final UserVerificationTokenService userVerificationTokenService;
     private final ApplicationEventPublisher applicationEventPublisher;
+    private final TwoFactorAuthService twoFactorAuthService;
     private final NotificationService notificationService;
     private final UserLookupService userLookupService;
     private final PasswordEncoder passwordEncoder;
@@ -30,6 +35,7 @@ public class UserService {
     public UserService(
         UserVerificationTokenService userVerificationTokenService,
         ApplicationEventPublisher applicationEventPublisher,
+        TwoFactorAuthService twoFactorAuthService,
         NotificationService notificationService,
         UserLookupService userLookupService,
         PasswordEncoder passwordEncoder,
@@ -37,6 +43,7 @@ public class UserService {
     ) {
         this.userVerificationTokenService = userVerificationTokenService;
         this.applicationEventPublisher = applicationEventPublisher;
+        this.twoFactorAuthService = twoFactorAuthService;
         this.notificationService = notificationService;
         this.userLookupService = userLookupService;
         this.passwordEncoder = passwordEncoder;
@@ -161,10 +168,94 @@ public class UserService {
     }
 
     /**
+     * Set up two-factor authentication (2FA) for a specific user.
+     *
+     * @param userId ID of the user to set up 2FA for
+     * @return TwoFactorAuthSetupDTO containing the secret required by the client to set up the 2FA and a URL which can be used to display a QR code that clients can scan.
+     */
+    public TwoFactorAuthSetupDTO setup2FA(int userId) {
+        User user = this.userLookupService.find(userId);
+        TwoFactorAuthSetupDTO twoFactorAuthSetupDTO = this.twoFactorAuthService.setup(user.getEmail());
+        user.setTwoFactorAuthSecret(twoFactorAuthSetupDTO.getSecret());
+        this.userRepository.save(user);
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        log.info("2FA setup for user \"{}\".", user.getId());
+        return twoFactorAuthSetupDTO;
+    }
+
+    /**
+     * Sets up two-factor authentication with a QR code for the specified user and returns the setup details including the QR code image URL.
+     *
+     * @param userId The unique identifier of the user whose account needs to be set up for two-factor authentication.
+     * @return A {@link TwoFactorAuthSetupWithQRCodeDTO} object containing the setup details, including the QR code image URL.
+     */
+    public TwoFactorAuthSetupWithQRCodeDTO setup2FAWithQRCode(int userId) {
+        TwoFactorAuthSetupDTO twoFactorAuthSetupDTO = this.setup2FA(userId);
+        return this.twoFactorAuthService.injectQRCode(twoFactorAuthSetupDTO);
+    }
+
+    /**
+     * Enables two-factor authentication (2FA) for the specified user.
+     *
+     * @param userId The unique identifier of the user for whom 2FA is being enabled.
+     * @param enableTwoFactorAuthDTO An object containing the required data, including the 2FA code, to enable 2FA.
+     * @return A collection of recovery codes (encapsulated within a TwoFactorAuthRecoveryCodeCollectionDTO)
+     *         for the user, which can be used to recover access in case the user loses their 2FA device.
+     */
+    @Transactional
+    public TwoFactorAuthRecoveryCodeCollectionDTO enable2FA(int userId, EnableTwoFactorAuthDTO enableTwoFactorAuthDTO) {
+        User user = this.userLookupService.find(userId);
+        if ( user.is2FAEnabled() ){
+            throw new AlreadyEnabledTwoFactorAuthException("2FA already enabled.");
+        }
+        String secret = user.getTwoFactorAuthSecret(), code = enableTwoFactorAuthDTO.getCode();
+        var twoFactorAuthConfigurationDTO = this.twoFactorAuthService.checkAndEnable(userId, secret, code);
+        user.setTwoFactorAuthEnabledAt(new Date());
+        this.userRepository.save(user);
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        log.info("2FA enabled for user \"{}\".", user.getId());
+        return twoFactorAuthConfigurationDTO;
+    }
+
+    /**
+     * Rotates the two-factor authentication recovery codes for a user.
+     *
+     * @param userId The unique identifier of the user whose recovery codes are to be rotated.
+     * @return A TwoFactorAuthRecoveryCodeCollectionDTO containing the newly generated recovery codes.
+     * @throws TwoFactorAuthNotInitializedException If two-factor authentication has not been initialized for the user.
+     */
+    public TwoFactorAuthRecoveryCodeCollectionDTO rotate2FARecoveryCodes(int userId, RotateTwoFactorAuthRecoveryCodesDTO rotateTwoFactorAuthRecoveryCodesDTO) {
+        User user = this.userLookupService.find(userId);
+        if ( user.getTwoFactorAuthEnabledAt() == null ){
+            throw new TwoFactorAuthNotInitializedException("Two-factor authentication has not been initialized yet.");
+        }
+        this.twoFactorAuthService.check(user.getTwoFactorAuthSecret(), rotateTwoFactorAuthRecoveryCodesDTO.getCode());
+        log.info("Rotating recovery codes for user \"{}\".", user.getId());
+        return this.twoFactorAuthService.rotateRecoveryCodes(userId);
+    }
+
+    /**
+     * Disables two-factor authentication (2FA) for the specified user.
+     *
+     * @param userId The unique identifier of the user for whom 2FA is to be disabled.
+     * @param disableTwoFactorAuthDTO An object containing data required to validate and perform the 2FA disabling process.
+     */
+    @Transactional
+    public void disable2FA(int userId, DisableTwoFactorAuthDTO disableTwoFactorAuthDTO) {
+        User user = this.userLookupService.find(userId);
+        String secret = user.getTwoFactorAuthSecret(), code = disableTwoFactorAuthDTO.getCode();
+        this.twoFactorAuthService.checkAndDisable(userId, secret, code);
+        user.setTwoFactorAuthEnabledAt(null);
+        user.setTwoFactorAuthSecret(null);
+        this.userRepository.save(user);
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        log.info("2FA disabled for user \"{}\".", user.getId());
+    }
+
+    /**
      * Send the activation email message to the given user.
      *
      * @param user The user the email will be sent to.
-     *
      * @throws UserAlreadyActivatedException If the given user has already been activated.
      */
     private void sendActivationEmail(User user) {
