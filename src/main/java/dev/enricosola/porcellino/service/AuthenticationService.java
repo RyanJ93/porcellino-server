@@ -145,6 +145,17 @@ public class AuthenticationService {
     }
 
     /**
+     * Retrieves the ID of the authenticated user based on the provided authentication details.
+     *
+     * @param authentication the authentication object containing the user's details.
+     * @return the ID of the authenticated user.
+     * @throws UsernameNotFoundException If the user cannot be found or is not active.
+     */
+    public int getAuthenticatedUserId(Authentication authentication) {
+        return this.getAuthenticatedUser(authentication).getId();
+    }
+
+    /**
      * Refreshes the access token using the provided refresh token. Optionally rotates the refresh token.
      *
      * @param refreshToken The refresh token used to generate a new access token.
@@ -180,6 +191,15 @@ public class AuthenticationService {
         log.info("Revoked refresh token for user \"{}\".", user.getId());
     }
 
+    /**
+     * Finalizes the authentication process for a user.
+     *
+     * @param authentication The authenticated object representing the user's authentication state.
+     * @param user The user object for whom the authentication is being finalized.
+     * @param scopes The scopes granted to the user during the authentication process.
+     * @param clientInfoDTO The client information associated with the authentication request.
+     * @return An AuthenticationContract containing the authenticated user and associated authentication tokens.
+     */
     protected AuthenticationContract finalizeAuthentication(Authentication authentication, User user, String[] scopes, ClientInfoDTO clientInfoDTO) {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         AuthTokenKeychain authTokenKeychain = new AuthTokenKeychain(

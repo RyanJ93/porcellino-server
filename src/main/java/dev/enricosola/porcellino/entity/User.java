@@ -49,6 +49,9 @@ public class User implements Serializable {
     @Column(name = "2fa_enabled_at")
     private Date twoFactorAuthEnabledAt;
 
+    @Column(name = "pending_email")
+    private String pendingEmail;
+
     @Column(name = "created_at")
     @CreatedDate
     private Date createdAt;
