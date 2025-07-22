@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN pending_email VARCHAR(255) DEFAULT NULL UNIQUE AFTER 2fa_enabled_at;

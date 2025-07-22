@@ -155,6 +155,9 @@ public class UserController {
         return ResponseEntity.ok().body(new UserResponseDTO(user));
     }
 
+    /**
+     * Update user password.
+     */
     @PatchMapping("/@me/password")
     public ResponseEntity<UserResponseDTO> updatePassword(
             @Valid @RequestBody PasswordUpdateRequestDTO passwordUpdateRequestDTO,
@@ -163,5 +166,41 @@ public class UserController {
         User user = this.authenticationService.getAuthenticatedUser(authentication);
         user = this.userService.findAndUpdatePassword(user.getId(), passwordUpdateRequestDTO.toServiceDTO());
         return ResponseEntity.ok().body(new UserResponseDTO(user));
+    }
+
+    /**
+     * Initializes the email change process.
+     */
+    @PostMapping("/@me/email")
+    public ResponseEntity<UserResponseDTO> initEmailChange(
+            @Valid @RequestBody InitEmailChangeRequestDTO initEmailChangeRequestDTO,
+            Authentication authentication
+    ) {
+        int userId = this.authenticationService.getAuthenticatedUserId(authentication);
+        User user = this.userService.findAndInitEmailChange(userId, initEmailChangeRequestDTO.toServiceDTO());
+        return ResponseEntity.ok().body(new UserResponseDTO(user));
+    }
+
+    /**
+     * Complete the email change process.
+     */
+    @PatchMapping("/@me/email")
+    public ResponseEntity<UserResponseDTO> applyEmailChange(
+            @Valid @RequestBody ApplyEmailChangeRequestDTO applyEmailChangeRequestDTO,
+            Authentication authentication
+    ) {
+        int userId = this.authenticationService.getAuthenticatedUserId(authentication);
+        User user = this.userService.findAndApplyEmailChange(userId, applyEmailChangeRequestDTO.toServiceDTO());
+        return ResponseEntity.ok().body(new UserResponseDTO(user));
+    }
+
+    /**
+     * Abort the email change process.
+     */
+    @DeleteMapping("/@me/email")
+    public ResponseEntity<Void> abortEmailChange(Authentication authentication) {
+        int userId = this.authenticationService.getAuthenticatedUserId(authentication);
+        this.userService.findAndAbortEmailChange(userId);
+        return ResponseEntity.noContent().build();
     }
 }

@@ -1,8 +1,6 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.dto.request.user.PasswordUpdateRequestDTO;
-import dev.enricosola.porcellino.notifications.user.PasswordResetUserEmailNotification;
-import dev.enricosola.porcellino.notifications.user.SignupUserEmailNotification;
+import dev.enricosola.porcellino.notifications.user.*;
 import dev.enricosola.porcellino.dto.TwoFactorAuthRecoveryCodeCollectionDTO;
 import dev.enricosola.porcellino.service.notification.NotificationService;
 import dev.enricosola.porcellino.dto.TwoFactorAuthSetupWithQRCodeDTO;
@@ -25,6 +23,7 @@ import java.util.Date;
 @Service
 @Slf4j
 public class UserService {
+    private final EmailVerificationTokenService emailVerificationTokenService;
     private final UserVerificationTokenService userVerificationTokenService;
     private final ApplicationEventPublisher applicationEventPublisher;
     private final TwoFactorAuthService twoFactorAuthService;
@@ -34,14 +33,16 @@ public class UserService {
     private final UserRepository userRepository;
 
     public UserService(
-        UserVerificationTokenService userVerificationTokenService,
-        ApplicationEventPublisher applicationEventPublisher,
-        TwoFactorAuthService twoFactorAuthService,
-        NotificationService notificationService,
-        UserLookupService userLookupService,
-        PasswordEncoder passwordEncoder,
-        UserRepository userRepository
+            EmailVerificationTokenService emailVerificationTokenService,
+            UserVerificationTokenService userVerificationTokenService,
+            ApplicationEventPublisher applicationEventPublisher,
+            TwoFactorAuthService twoFactorAuthService,
+            NotificationService notificationService,
+            UserLookupService userLookupService,
+            PasswordEncoder passwordEncoder,
+            UserRepository userRepository
     ) {
+        this.emailVerificationTokenService = emailVerificationTokenService;
         this.userVerificationTokenService = userVerificationTokenService;
         this.applicationEventPublisher = applicationEventPublisher;
         this.twoFactorAuthService = twoFactorAuthService;
@@ -167,6 +168,71 @@ public class UserService {
             throw new PasswordMismatchException("Old password does not match current password.");
         }
         user.setPassword(this.passwordEncoder.encode(passwordUpdateDTO.getNewPassword()));
+        this.userRepository.save(user);
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        return user;
+    }
+
+    /**
+     * Finds a user by their ID, initializes their email change process, and sends a confirmation email with a verification token.
+     *
+     * @param id the unique identifier of the user.
+     * @param initEmailChangeDTO the DTO containing information to initialize the email change process for the user.
+     * @return the updated User object after the email change initialization.
+     * @throws InvalidPendingEmailException If the user does not have a valid pending email address.
+     * @throws InvalidNewEmailAddressException If given address is the same as the current one.
+     * @throws InvalidNewEmailAddressException If an invalid email address is provided.
+     * @throws NotFoundException If no user matching given ID is found.
+     */
+    @Transactional
+    public User findAndInitEmailChange(int id, InitEmailChangeDTO initEmailChangeDTO) {
+        User user = this.userLookupService.find(id);
+        if (initEmailChangeDTO == null || initEmailChangeDTO.getEmail() == null || initEmailChangeDTO.getEmail().isBlank()) {
+            throw new InvalidNewEmailAddressException("Invalid email address provided.");
+        }
+        if (user.getEmail().equals(initEmailChangeDTO.getEmail())) {
+            throw new InvalidNewEmailAddressException("New email address cannot be the same as the current one.");
+        }
+        initEmailChangeDTO.hydrateEntity(user);
+        String verificationToken = this.emailVerificationTokenService.generate(user);
+        user = this.userRepository.save(user);
+        this.notificationService.send(new ConfirmEmailChangeUserEmailNotification(user, verificationToken));
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        return user;
+    }
+
+    /**
+     * Finds a user based on a pending email extracted from the given verification token and applies the email change to the user's account.
+     *
+     * @param id the ID of the user requesting the email change.
+     * @param applyEmailChangeDTO the data transfer object containing the email change information, including the verification token.
+     * @return the updated User object after the email change has been applied.
+     * @throws UserMismatchException if the given user ID does not match the user associated with the provided token.
+     */
+    public User findAndApplyEmailChange(int id, ApplyEmailChangeDTO applyEmailChangeDTO) {
+        String pendingEmail = this.emailVerificationTokenService.extractPendingEmailFromToken(applyEmailChangeDTO.getToken());
+        User user = this.userLookupService.findByPendingEmail(pendingEmail);
+        if ( id != user.getId() ) {
+            throw new UserMismatchException("Given user ID does not match the user associated with the given verification token.");
+        }
+        user.setEmail(pendingEmail);
+        user.setPendingEmail(null);
+        this.userRepository.save(user);
+        this.notificationService.send(new PreviousEmailChangeUserEmailNotification(user, pendingEmail));
+        this.notificationService.send(new EmailChangeUserEmailNotification(user));
+        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+        return user;
+    }
+
+    /**
+     * Finds a user by their ID and aborts the pending email change by setting the pending email to null.
+     *
+     * @param id the unique identifier of the user.
+     * @return the updated User object with the pending email change aborted.
+     */
+    public User findAndAbortEmailChange(int id) {
+        User user = this.userLookupService.find(id);
+        user.setPendingEmail(null);
         this.userRepository.save(user);
         this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
         return user;

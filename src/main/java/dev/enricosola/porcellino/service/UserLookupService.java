@@ -3,7 +3,6 @@ package dev.enricosola.porcellino.service;
 import dev.enricosola.porcellino.exception.UserNotActiveException;
 import dev.enricosola.porcellino.exception.NotFoundException;
 import dev.enricosola.porcellino.repository.UserRepository;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
 import java.util.Optional;
@@ -30,8 +29,13 @@ public class UserLookupService {
         return user.orElseThrow(() -> new NotFoundException("No user found matching email " + email));
     }
 
+    public User findByPendingEmail(String pendingEmail) {
+        Optional<User> user = this.userRepository.getUserByPendingEmail(pendingEmail);
+        return user.orElseThrow(() -> new NotFoundException("No user found matching email " + pendingEmail));
+    }
+
     /**
-     * Lookup an active user given its email.
+     * Look up an active user given its email.
      *
      * @param email The email address to lookup.
      *
