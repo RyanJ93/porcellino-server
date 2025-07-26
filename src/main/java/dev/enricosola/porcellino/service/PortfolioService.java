@@ -39,7 +39,7 @@ public class PortfolioService {
     }
 
     public Portfolio createFromForm(User user, CreateForm createForm){
-        Currency currency = this.currencyService.getById(createForm.getCurrencyId());
+        Currency currency = this.currencyService.findById(createForm.getCurrencyId());
         return this.create(user, currency, createForm.getName());
     }
 

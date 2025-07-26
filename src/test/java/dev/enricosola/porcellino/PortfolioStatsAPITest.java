@@ -67,7 +67,7 @@ public class PortfolioStatsAPITest {
 
     private void generateSamplePortfolio(){
         User user = this.testAuthenticationManager.getAuthenticatedUser();
-        Currency currency = this.currencyService.getById(1);
+        Currency currency = this.currencyService.findById(1);
         this.portfolio = this.portfolioService.create(user, currency, "Test stats");
     }
 
