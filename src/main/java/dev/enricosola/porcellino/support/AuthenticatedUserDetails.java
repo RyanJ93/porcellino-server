@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.ArrayList;
 import java.io.Serial;
 import java.util.List;
+import lombok.Getter;
 
 public class AuthenticatedUserDetails implements UserDetails {
     @Serial
@@ -17,6 +18,9 @@ public class AuthenticatedUserDetails implements UserDetails {
     private final String username;
     private final String password;
 
+    @Getter
+    private final User user;
+
     private void generateAuthorities(){
         this.authorityList = new ArrayList<>();
         this.authorityList.add(new SimpleGrantedAuthority("ROLE_USER"));
@@ -25,6 +29,8 @@ public class AuthenticatedUserDetails implements UserDetails {
     public AuthenticatedUserDetails(User user){
         this.password = user.getPassword();
         this.username = user.getEmail();
+        this.user = user;
+
         this.generateAuthorities();
     }
 

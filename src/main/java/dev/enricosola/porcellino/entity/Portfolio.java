@@ -1,5 +1,8 @@
 package dev.enricosola.porcellino.entity;
 
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.io.Serializable;
@@ -13,6 +16,7 @@ import lombok.*;
 @Getter
 @Setter
 @RequiredArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 public class Portfolio implements Serializable {
     @Serial
     private static final long serialVersionUID = -3439589906774660466L;
@@ -33,12 +37,12 @@ public class Portfolio implements Serializable {
     @Column(name = "name")
     private String name;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at")
+    @CreatedDate
     private Date createdAt;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
+    @LastModifiedDate
     private Date updatedAt;
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "portfolio")

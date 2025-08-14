@@ -48,7 +48,7 @@ public class TransactionAPITest {
             this.testAuthenticationManager.ensureTestUser();
             User user = this.testAuthenticationManager.getAuthenticatedUser();
             Currency currency = this.currencyService.findById(1);
-            this.portfolio = this.portfolioService.create(user, currency, "TEST");
+            //this.portfolio = this.portfolioService.create(user, currency, "TEST");
         }
     }
 

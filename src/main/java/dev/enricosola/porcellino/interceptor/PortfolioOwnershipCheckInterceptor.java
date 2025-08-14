@@ -35,7 +35,7 @@ public class PortfolioOwnershipCheckInterceptor implements HandlerInterceptor {
         Pattern pattern = Pattern.compile("/api/portfolio/([0-9]).+");
         Matcher matcher = pattern.matcher(request.getRequestURI());
         if ( matcher.matches() && !matcher.group(1).isBlank() ){
-            Portfolio portfolio = this.portfolioService.getById(Integer.parseInt(matcher.group(1)));
+            Portfolio portfolio = this.portfolioService.find(Integer.parseInt(matcher.group(1)));
             if ( portfolio == null ){
                 throw new ResponseStatusException(NOT_FOUND, "No such portfolio found.");
             }

@@ -37,7 +37,7 @@ public class TransactionController {
 
     @GetMapping()
     public ResponseEntity<ListResponse> list(@PathVariable("portfolioId") String portfolioId){
-        Portfolio portfolio = this.portfolioService.getById(Integer.parseInt(portfolioId));
+        Portfolio portfolio = this.portfolioService.find(Integer.parseInt(portfolioId));
         if ( portfolio == null ){
             throw new ResponseStatusException(NOT_FOUND, "No such portfolio found.");
         }
@@ -51,7 +51,7 @@ public class TransactionController {
         @PathVariable("portfolioId") String portfolioId,
         @Valid @ModelAttribute CreateForm createForm
     ){
-        Portfolio portfolio = this.portfolioService.getById(Integer.parseInt(portfolioId));
+        Portfolio portfolio = this.portfolioService.find(Integer.parseInt(portfolioId));
         if ( portfolio == null ){
             throw new ResponseStatusException(NOT_FOUND, "No such portfolio found.");
         }
@@ -66,7 +66,7 @@ public class TransactionController {
         @PathVariable("portfolioId") String portfolioId,
         @Valid @ModelAttribute EditForm editForm
     ){
-        if ( this.portfolioService.getById(Integer.parseInt(portfolioId)) == null ){
+        if ( this.portfolioService.find(Integer.parseInt(portfolioId)) == null ){
             throw new ResponseStatusException(NOT_FOUND, "No such portfolio found.");
         }
         if ( this.transactionService.getById(Integer.parseInt(transactionId)) == null ){
@@ -82,7 +82,7 @@ public class TransactionController {
         @PathVariable("transactionId") String transactionId,
         @PathVariable("portfolioId") String portfolioId
     ){
-        if ( this.portfolioService.getById(Integer.parseInt(portfolioId)) == null ){
+        if ( this.portfolioService.find(Integer.parseInt(portfolioId)) == null ){
             throw new ResponseStatusException(NOT_FOUND, "No such portfolio found.");
         }
         if ( this.transactionService.getById(Integer.parseInt(transactionId)) == null ){
