@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/currency")
+@RequestMapping("/api/v1/currencies")
 @CrossOrigin(origins = "*", maxAge = 3600)
 public class CurrencyController {
     private final CurrencyService currencyService;

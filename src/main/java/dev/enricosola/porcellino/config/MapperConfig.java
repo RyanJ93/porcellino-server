@@ -1,27 +1,27 @@
 package dev.enricosola.porcellino.config;
 
+import dev.enricosola.porcellino.support.annotation.MappingIgnore;
+import org.modelmapper.spi.MappingContext;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Bean;
-import dev.enricosola.porcellino.dto.user.UserDTO;
-import dev.enricosola.porcellino.entity.User;
-import org.modelmapper.PropertyMap;
 import org.modelmapper.ModelMapper;
+import java.lang.reflect.Field;
 
 @Configuration
 public class MapperConfig {
-    public PropertyMap<User, UserDTO> userMapping = new PropertyMap<>(){
-        @Override
-        protected void configure(){
-            this.map().setEmail(this.source.getEmail());
-            this.map().setId(this.source.getId());
-        }
-    };
-
     @Bean
-    public ModelMapper modelMapper(){
+    public ModelMapper modelMapper() {
         ModelMapper modelMapper = new ModelMapper();
-        modelMapper.getConfiguration().setSkipNullEnabled(true);
-        modelMapper.addMappings(this.userMapping);
+        modelMapper.getConfiguration().setPropertyCondition((MappingContext<Object, Object> context) -> {
+            if (context.getSource() != null) {
+                for (Field field : context.getSource().getClass().getDeclaredFields()) {
+                    if (field.getAnnotation(MappingIgnore.class) != null) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }).setSkipNullEnabled(true);
         return modelMapper;
     }
 }

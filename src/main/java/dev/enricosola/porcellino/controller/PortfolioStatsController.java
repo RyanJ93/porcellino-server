@@ -31,7 +31,7 @@ public class PortfolioStatsController {
             @PathVariable("portfolioId") String portfolioId
     ){
         Date startDate = DateUtils.parse(startDateStr), endDate = DateUtils.parse(endDateStr);
-        Portfolio portfolio = this.portfolioService.getById(Integer.parseInt(portfolioId));
+        Portfolio portfolio = this.portfolioService.find(Integer.parseInt(portfolioId));
         PortfolioStatsDTO stats;
         if ( startDate != null && endDate != null ){
             stats = this.portfolioStatsService.computeStats(portfolio, startDate, endDate);
@@ -48,7 +48,7 @@ public class PortfolioStatsController {
         @PathVariable("portfolioId") String portfolioId
     ){
         Date startDate = DateUtils.parse(startDateStr), endDate = DateUtils.parse(endDateStr);
-        Portfolio portfolio = this.portfolioService.getById(Integer.parseInt(portfolioId));
+        Portfolio portfolio = this.portfolioService.find(Integer.parseInt(portfolioId));
         if ( endDate == null ){
             endDate = new Date();
         }
