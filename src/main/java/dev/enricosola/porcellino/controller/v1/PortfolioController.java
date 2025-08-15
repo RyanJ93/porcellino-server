@@ -3,8 +3,6 @@ package dev.enricosola.porcellino.controller.v1;
 import dev.enricosola.porcellino.dto.request.portfolio.PortfolioCreateRequestDTO;
 import dev.enricosola.porcellino.dto.request.portfolio.PortfolioUpdateRequestDTO;
 import dev.enricosola.porcellino.dto.response.portfolio.PortfolioResponseDTO;
-import dev.enricosola.porcellino.dto.service.portfolio.PortfolioCreateDTO;
-import dev.enricosola.porcellino.dto.service.portfolio.PortfolioUpdateDTO;
 import org.springframework.security.access.prepost.PreAuthorize;
 import dev.enricosola.porcellino.service.PortfolioService;
 import dev.enricosola.porcellino.entity.Portfolio;
