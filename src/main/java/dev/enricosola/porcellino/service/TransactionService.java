@@ -1,92 +1,107 @@
 package dev.enricosola.porcellino.service;
 
+import dev.enricosola.porcellino.dto.service.transaction.TransactionCreateDTO;
+import dev.enricosola.porcellino.dto.service.transaction.TransactionUpdateDTO;
+import dev.enricosola.porcellino.events.transaction.TransactionCreatedEvent;
+import dev.enricosola.porcellino.events.transaction.TransactionDeletedEvent;
+import dev.enricosola.porcellino.events.transaction.TransactionUpdatedEvent;
 import dev.enricosola.porcellino.repository.TransactionRepository;
 import org.springframework.transaction.annotation.Transactional;
-import dev.enricosola.porcellino.form.transaction.CreateForm;
-import dev.enricosola.porcellino.form.transaction.EditForm;
-import dev.enricosola.porcellino.enums.TransactionType;
+import dev.enricosola.porcellino.exception.NotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import dev.enricosola.porcellino.entity.Transaction;
 import dev.enricosola.porcellino.entity.Portfolio;
 import org.springframework.stereotype.Service;
+import org.modelmapper.ModelMapper;
 import lombok.extern.slf4j.Slf4j;
-import java.util.Date;
 import java.util.List;
-import lombok.Getter;
-import lombok.Setter;
 
 @Transactional
 @Service
 @Slf4j
 public class TransactionService {
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final TransactionRepository transactionRepository;
+    private final PortfolioService portfolioService;
 
-    @Getter
-    @Setter
-    private Transaction transaction;
-
-    public TransactionService(TransactionRepository transactionRepository){
+    public TransactionService(
+            ApplicationEventPublisher applicationEventPublisher,
+            TransactionRepository transactionRepository,
+            PortfolioService portfolioService
+    ){
+        this.applicationEventPublisher = applicationEventPublisher;
         this.transactionRepository = transactionRepository;
+        this.portfolioService = portfolioService;
     }
 
-    public Transaction getById(int id){
-        return this.transaction = this.transactionRepository.findById(id).orElse(null);
+    /**
+     * Retrieves all transactions associated with a specific portfolio.
+     *
+     * @param portfolioId the unique identifier of the portfolio whose transactions are to be retrieved.
+     * @return a list of transactions associated with the specified portfolio.
+     */
+    public List<Transaction> findAll(int portfolioId) {
+        Portfolio portfolio = this.portfolioService.find(portfolioId);
+        return this.transactionRepository.findAllByPortfolio(portfolio);
     }
 
-    public List<Transaction> getAll(Portfolio portfolio){
-        return this.transactionRepository.findByPortfolio(portfolio);
+    /**
+     * Finds a transaction by its unique identifier and associated portfolio identifier.
+     *
+     * @param portfolioId the unique identifier of the portfolio to which the transaction belongs.
+     * @param id the unique identifier of the transaction to be retrieved.
+     * @return the transaction matching the given identifiers.
+     * @throws NotFoundException if no transaction is found matching the provided identifiers.
+     */
+    public Transaction find(int portfolioId, int id) {
+        return this.transactionRepository.findByIdAndPortfolioId(id, portfolioId)
+                .orElseThrow(() -> new NotFoundException("No matching transaction found."));
     }
 
-    public Transaction createFromForm(Portfolio portfolio, CreateForm createForm){
-        return this.create(
-            portfolio,
-            createForm.getAmount(),
-            createForm.getQuantity(),
-            createForm.getType(),
-            createForm.getDate(),
-            createForm.getNote()
-        );
-    }
-
-    public Transaction editFromForm(EditForm editForm){
-        return this.edit(
-            editForm.getAmount(),
-            editForm.getQuantity(),
-            editForm.getType(),
-            editForm.getDate(),
-            editForm.getNote()
-        );
-    }
-
-    public Transaction create(Portfolio portfolio, double amount, int quantity, TransactionType type, Date date, String note){
-        Transaction transaction = new Transaction();
-        transaction.setCreatedAt(new Date());
-        transaction.setUpdatedAt(new Date());
+    /**
+     * Creates a new transaction for the specified portfolio.
+     *
+     * @param portfolioId the unique identifier of the portfolio to which the transaction belongs.
+     * @param transactionCreateDTO the data transfer object containing the details of the transaction to be created.
+     * @return the newly created Transaction object.
+     */
+    public Transaction create(int portfolioId, TransactionCreateDTO transactionCreateDTO) {
+        Portfolio portfolio = this.portfolioService.find(portfolioId);
+        Transaction transaction = transactionCreateDTO.toEntity();
         transaction.setPortfolio(portfolio);
-        transaction.setQuantity(quantity);
-        transaction.setAmount(amount);
-        transaction.setType(type);
-        transaction.setDate(date);
-        transaction.setNote(note);
-        String logMessage = "Created new transaction with type {}, amount {} and quantity {} at date {} and contained in portfolio {}.";
-        TransactionService.log.info(logMessage, type, amount, quantity, date, portfolio.getId());
-        return this.transaction = this.transactionRepository.save(transaction);
+        transaction = this.transactionRepository.save(transaction);
+        this.applicationEventPublisher.publishEvent(new TransactionCreatedEvent(this, transaction));
+        return transaction;
     }
 
-    public Transaction edit(double amount, int quantity, TransactionType type, Date date, String note){
-        this.transaction.setUpdatedAt(new Date());
-        this.transaction.setQuantity(quantity);
-        this.transaction.setAmount(amount);
-        this.transaction.setType(type);
-        this.transaction.setDate(date);
-        this.transaction.setNote(note);
-        String logMessage = "Updated transaction {} with type {}, amount {} and quantity {} at date {}.";
-        TransactionService.log.info(logMessage, this.transaction.getId(), type, amount, quantity, date);
-        return this.transactionRepository.save(this.transaction);
+    /**
+     * Updates an existing transaction with the specified details.
+     *
+     * @param portfolioId the unique identifier of the portfolio to which the transaction belongs.
+     * @param id the unique identifier of the transaction to be updated.
+     * @param transactionUpdateDTO the data transfer object containing the updated details for the transaction.
+     * @return the updated Transaction object after persisting changes.
+     * @throws NotFoundException if no transaction is found matching the provided identifiers.
+     */
+    public Transaction update(int portfolioId, int id, TransactionUpdateDTO transactionUpdateDTO) {
+        Transaction transaction = this.find(portfolioId, id);
+        Transaction previousTransaction = new ModelMapper().map(transaction, Transaction.class);
+        transaction = transactionUpdateDTO.hydrateEntity(transaction);
+        transaction = this.transactionRepository.save(transaction);
+        this.applicationEventPublisher.publishEvent(new TransactionUpdatedEvent(this, previousTransaction, transaction));
+        return transaction;
     }
 
-    public void delete(){
-        this.transactionRepository.delete(this.transaction);
-        TransactionService.log.info("Deleted transaction {}.", this.transaction.getId());
-        this.transaction = null;
+    /**
+     * Deletes a transaction associated with the specified portfolio.
+     *
+     * @param portfolioId the unique identifier of the portfolio to which the transaction belongs.
+     * @param id the unique identifier of the transaction to be deleted.
+     * @throws NotFoundException if no transaction is found matching the provided identifiers.
+     */
+    public void delete(int portfolioId, int id) {
+        Transaction transaction = this.find(portfolioId, id);
+        this.transactionRepository.delete(transaction);
+        this.applicationEventPublisher.publishEvent(new TransactionDeletedEvent(this, transaction));
     }
 }

@@ -1,6 +1,10 @@
 package dev.enricosola.porcellino.entity;
 
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.data.annotation.LastModifiedDate;
+import org.springframework.data.annotation.CreatedDate;
 import dev.enricosola.porcellino.enums.TransactionType;
+import org.hibernate.annotations.Generated;
 import jakarta.persistence.*;
 import java.io.Serializable;
 import java.io.Serial;
@@ -12,6 +16,7 @@ import lombok.*;
 @Getter
 @Setter
 @RequiredArgsConstructor
+@EntityListeners(AuditingEntityListener.class)
 public class Transaction implements Serializable {
     @Serial
     private static final long serialVersionUID = 2834974322099975884L;
@@ -39,13 +44,14 @@ public class Transaction implements Serializable {
 
     @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "date")
+    @Generated
     private Date date;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "created_at")
+    @CreatedDate
     private Date createdAt;
 
-    @Temporal(TemporalType.TIMESTAMP)
     @Column(name = "updated_at")
+    @LastModifiedDate
     private Date updatedAt;
 }

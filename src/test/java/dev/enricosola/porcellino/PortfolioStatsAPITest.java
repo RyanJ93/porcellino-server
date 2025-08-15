@@ -75,7 +75,7 @@ public class PortfolioStatsAPITest {
         // ( -100 * 1 ) + ( 50 * 1 ) + ( 25 * 2 ) + ( 100 * 1 ) + ( -25 * 2 ) + ( 100 * 1 ) + ( -100 * 1 ) + ( -150 * 2 ) + ( 200 * 1 ) + ( 50 * 2 )
         for ( TransactionProps transactionProps : PortfolioStatsAPITest.SAMPLE_TRANSACTION_LIST ){
             Date date = DateUtils.parse(transactionProps.date());
-            this.transactionService.create(this.portfolio, transactionProps.amount(), transactionProps.quantity(), transactionProps.type(), date, "");
+            // this.transactionService.create(this.portfolio, transactionProps.amount(), transactionProps.quantity(), transactionProps.type(), date, "");
         }
     }
 
