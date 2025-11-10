@@ -1,7 +1,7 @@
 package dev.enricosola.porcellino.service;
 
+import dev.enricosola.porcellino.exception.clienttracking.NotFoundClientTrackingException;
 import dev.enricosola.porcellino.repository.ClientTrackingRepository;
-import dev.enricosola.porcellino.exception.NotFoundException;
 import dev.enricosola.porcellino.dto.IPGeolocationInfoDTO;
 import dev.enricosola.porcellino.dto.ClientDeviceInfoDTO;
 import dev.enricosola.porcellino.dto.ClientTrackingDTO;
@@ -9,23 +9,14 @@ import dev.enricosola.porcellino.entity.ClientTracking;
 import dev.enricosola.porcellino.dto.ClientInfoDTO;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class ClientTrackingService {
     protected final ClientTrackingRepository clientTrackingRepository;
     protected final IPGeolocationService ipGeolocationService;
     protected final ClientAnalyzeService clientAnalyzeService;
-
-    public ClientTrackingService(
-            ClientTrackingRepository clientTrackingRepository,
-            IPGeolocationService ipGeolocationService,
-            ClientAnalyzeService clientAnalyzeService
-    ) {
-        this.clientTrackingRepository = clientTrackingRepository;
-        this.ipGeolocationService = ipGeolocationService;
-        this.clientAnalyzeService = clientAnalyzeService;
-    }
 
     /**
      * Finds a ClientTracking entity based on the provided reference name and reference ID.
@@ -33,11 +24,11 @@ public class ClientTrackingService {
      * @param refName The reference name used to locate the ClientTracking entity.
      * @param refId The reference ID used to locate the ClientTracking entity.
      * @return The matching ClientTracking entity if found.
-     * @throws NotFoundException if no ClientTracking entity is found for the provided reference name and ID.
+     * @throws NotFoundClientTrackingException if no ClientTracking entity is found for the provided reference name and ID.
      */
     public ClientTracking findByRef(String refName, int refId) {
-        Optional<ClientTracking> clientTracking = this.clientTrackingRepository.findByRefNameAndRefId(refName, refId);
-        return clientTracking.orElseThrow(() -> new NotFoundException("No client tracking found for refName \"" + refName + "\" and refId " + refId + "."));
+        return this.clientTrackingRepository.findByRefNameAndRefId(refName, refId)
+                .orElseThrow(() -> new NotFoundClientTrackingException("No client tracking found for refName \"" + refName + "\" and refId " + refId + "."));
     }
 
     /**
@@ -45,7 +36,7 @@ public class ClientTrackingService {
      *
      * @param refName The reference name used to locate the ClientTracking entity.
      * @param refId The reference ID used to locate the ClientTracking entity.
-     * @throws NotFoundException if no ClientTracking entity is found for the provided reference name and ID.
+     * @throws NotFoundClientTrackingException if no ClientTracking entity is found for the provided reference name and ID.
      */
     public void findByRefAndDelete(String refName, int refId) {
         ClientTracking clientTracking = this.findByRef(refName, refId);
@@ -90,6 +81,14 @@ public class ClientTrackingService {
         this.reprocessGeoInfo(refName, refId);
     }
 
+    /**
+     * Reprocesses the geolocation information for a client tracking record based on the
+     * provided reference name and reference ID. Updates the associated geolocation
+     * details like country, region, city, and zip code using the IP address information.
+     *
+     * @param refName The reference name used to locate the client tracking record.
+     * @param refId The reference ID used to locate the client tracking record.
+     */
     public void reprocessGeoInfo(String refName, int refId) {
         ClientTracking clientTracking = this.findByRef(refName, refId);
         IPGeolocationInfoDTO ipGeolocationInfoDTO = this.ipGeolocationService.lookup(clientTracking.getIPAddress());
@@ -101,6 +100,15 @@ public class ClientTrackingService {
         this.clientTrackingRepository.save(clientTracking);
     }
 
+    /**
+     * Reprocesses the client-specific information for a client tracking record
+     * based on the provided reference name and ID. This includes updating details
+     * such as browser version, browser name, operating system version, and
+     * operating system name using the client’s user agent data.
+     *
+     * @param refName The reference name used to locate the client tracking record.
+     * @param refId The reference ID used to locate the client tracking record.
+     */
     public void reprocessClientInfo(String refName, int refId) {
         ClientTracking clientTracking = this.findByRef(refName, refId);
         ClientDeviceInfoDTO clientDeviceInfoDTO = this.clientAnalyzeService.analyze(clientTracking.getUserAgent());

@@ -1,37 +1,43 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.exception.UserNotActiveException;
-import dev.enricosola.porcellino.exception.NotFoundException;
+import dev.enricosola.porcellino.exception.user.NotActiveUserException;
+import dev.enricosola.porcellino.exception.user.NotFoundUserException;
 import dev.enricosola.porcellino.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class UserLookupService {
     private final UserRepository userRepository;
 
-    public UserLookupService(UserRepository userRepository) {
-        this.userRepository = userRepository;
-    }
-
     /**
-     * Lookup a user given its email.
+     * Look up a user given its email.
      *
      * @param email The email address to lookup.
      *
      * @return The corresponding user.
      *
-     * @throws NotFoundException If no user matching given email address is found.
+     * @throws NotFoundUserException If no user matching the given email address is found.
      */
     public User findByEmail(String email) {
-        Optional<User> user = this.userRepository.getUserByEmail(email);
-        return user.orElseThrow(() -> new NotFoundException("No user found matching email " + email));
+        return this.userRepository.getUserByEmail(email)
+                .orElseThrow(() -> new NotFoundUserException("No user found matching email " + email));
     }
 
+    /**
+     * Look up a user by their pending email address.
+     *
+     * @param pendingEmail The email address to look up that is marked as pending verification.
+     *
+     * @return The corresponding user whose pending email matches the input.
+     *
+     * @throws NotFoundUserException If no user matching the given pending email address is found.
+     */
     public User findByPendingEmail(String pendingEmail) {
-        Optional<User> user = this.userRepository.getUserByPendingEmail(pendingEmail);
-        return user.orElseThrow(() -> new NotFoundException("No user found matching email " + pendingEmail));
+        return this.userRepository.getUserByPendingEmail(pendingEmail)
+                .orElseThrow(() -> new NotFoundUserException("No user found matching email " + pendingEmail));
     }
 
     /**
@@ -41,13 +47,13 @@ public class UserLookupService {
      *
      * @return The corresponding user.
      *
-     * @throws NotFoundException If no user matching the given email address found.
-     * @throws UserNotActiveException If user found is not active.
+     * @throws NotFoundUserException If no user matching the given email address found.
+     * @throws NotActiveUserException If the user found is not active.
      */
     public User findActiveUserByEmail(String email) {
         User user = this.findByEmail(email);
         if ( !user.isActive() ) {
-            throw new UserNotActiveException("User is not active yet.");
+            throw new NotActiveUserException("User is not active yet.");
         }
         return user;
     }
@@ -59,10 +65,10 @@ public class UserLookupService {
      *
      * @return The corresponding user.
      *
-     * @throws NotFoundException If no user matching given ID is found.
+     * @throws NotFoundUserException If no user matching given ID is found.
      */
     public User find(int id) {
-        Optional<User> user = this.userRepository.findById(id);
-        return user.orElseThrow(() -> new NotFoundException("No user found matching ID " + id));
+        return this.userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundUserException("No user found matching ID " + id));
     }
 }

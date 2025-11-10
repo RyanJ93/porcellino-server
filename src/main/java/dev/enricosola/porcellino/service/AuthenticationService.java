@@ -1,15 +1,16 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.dto.ClientInfoDTO;
-import dev.enricosola.porcellino.dto.auth.TwoFactorCodeChallengeDTO;
-import dev.enricosola.porcellino.dto.auth.TwoFactorRecoveryCodeChallengeDTO;
-import dev.enricosola.porcellino.exception.NotEnabledTwoFactorAuthException;
+import dev.enricosola.porcellino.exception.auth.twofactor.NotEnabledTwoFactorAuthException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import dev.enricosola.porcellino.dto.auth.TwoFactorRecoveryCodeChallengeDTO;
 import org.springframework.security.authentication.AuthenticationManager;
+import dev.enricosola.porcellino.exception.user.NotActiveUserException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import dev.enricosola.porcellino.exception.user.NotFoundUserException;
 import dev.enricosola.porcellino.events.auth.AuthRenewCompletedEvent;
-import dev.enricosola.porcellino.exception.UserNotActiveException;
+import dev.enricosola.porcellino.exception.auth.FailedAuthException;
+import dev.enricosola.porcellino.dto.auth.TwoFactorCodeChallengeDTO;
 import dev.enricosola.porcellino.support.AuthenticatedUserDetails;
 import org.springframework.security.core.AuthenticationException;
 import dev.enricosola.porcellino.events.auth.AuthCompletedEvent;
@@ -18,19 +19,21 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.enricosola.porcellino.events.auth.AuthRevokedEvent;
 import dev.enricosola.porcellino.events.auth.AuthFailedEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import dev.enricosola.porcellino.exception.NotFoundException;
 import dev.enricosola.porcellino.support.AuthTokenKeychain;
 import org.springframework.security.core.Authentication;
 import dev.enricosola.porcellino.enums.AuthFailReason;
 import dev.enricosola.porcellino.dto.user.UserAuthDTO;
 import dev.enricosola.porcellino.entity.RefreshToken;
+import dev.enricosola.porcellino.dto.ClientInfoDTO;
 import dev.enricosola.porcellino.dto.UserTokenDTO;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class AuthenticationService {
     protected static final String[] TWO_FACTOR_AUTH_SCOPES = {"2fa"};
     protected static final String[] AUTH_SCOPES = {"auth"};
@@ -43,30 +46,14 @@ public class AuthenticationService {
     protected final AccessTokenService accessTokenService;
     protected final UserLookupService userLookupService;
 
-    public AuthenticationService(
-            ApplicationEventPublisher applicationEventPublisher,
-            AuthenticationManager authenticationManager,
-            TwoFactorAuthService twoFactorAuthService,
-            RefreshTokenService refreshTokenService,
-            RecoveryCodeService recoveryCodeService,
-            AccessTokenService accessTokenService,
-            UserLookupService userLookupService
-    ) {
-        this.applicationEventPublisher = applicationEventPublisher;
-        this.authenticationManager = authenticationManager;
-        this.twoFactorAuthService = twoFactorAuthService;
-        this.refreshTokenService = refreshTokenService;
-        this.recoveryCodeService = recoveryCodeService;
-        this.accessTokenService = accessTokenService;
-        this.userLookupService = userLookupService;
-    }
-
     /**
-     * Authenticates a user based on the provided credentials and generates an authentication contract.
+     * Authenticates a user based on provided credentials and returns an authentication contract.
      *
-     * @param userAuthDTO The data transfer object containing the user's authentication credentials (email and password).
-     * @return An AuthenticationContract consisting of user information and a keychain with access and refresh tokens.
-     * @throws UsernameNotFoundException If no user matching the given email address is found.
+     * @param userAuthDTO the data transfer object containing user's authentication information, including email, password, and client details.
+     * @return an {@link AuthenticationContract} containing information related to the authenticated session, including tokens and authentication scopes.
+     * @throws FailedAuthException if the authentication fails due to invalid credentials.
+     * @throws NotActiveUserException if the user is not active.
+     * @throws NotFoundUserException if the user is not found.
      */
     @Transactional
     public AuthenticationContract authenticate(UserAuthDTO userAuthDTO) {
@@ -83,20 +70,25 @@ public class AuthenticationService {
         } catch (AuthenticationException ex) {
             this.applicationEventPublisher.publishEvent(new AuthFailedEvent(this, AuthFailReason.INVALID_CREDENTIALS, userAuthDTO.getEmail()));
             log.info("Failed authentication attempt while authenticating user \"{}\" (INVALID_CREDENTIALS).", userAuthDTO.getEmail());
-            throw ex;
-        }  catch(UserNotActiveException ex) {
+            throw new FailedAuthException("Authentication failed.", ex);
+        }  catch(NotActiveUserException ex) {
             this.applicationEventPublisher.publishEvent(new AuthFailedEvent(this, AuthFailReason.USER_NOT_ACTIVATED, userAuthDTO.getEmail()));
             log.info("Failed authentication attempt while authenticating user \"{}\" (USER_NOT_ACTIVATED).", userAuthDTO.getEmail());
             throw ex;
-        } catch (NotFoundException ex) {
+        } catch (NotFoundUserException ex) {
             this.applicationEventPublisher.publishEvent(new AuthFailedEvent(this, AuthFailReason.USER_NOT_FOUND, userAuthDTO.getEmail()));
             log.info("Failed authentication attempt while authenticating user \"{}\" (USER_NOT_FOUND).", userAuthDTO.getEmail());
-            throw new UsernameNotFoundException("No user matching the given email address found.", ex);
+            throw ex;
         }
     }
 
     /**
+     * Challenges the two-factor authentication (2FA) code for a specified user.
      *
+     * @param userId The unique identifier of the user attempting to authenticate.
+     * @param twoFactorCodeChallengeDTO The DTO containing the 2FA code and client information.
+     * @return The AuthenticationContract that represents the result of the authentication process.
+     * @throws NotEnabledTwoFactorAuthException If the user does not have 2FA enabled.
      */
     public AuthenticationContract challenge2FACode(int userId, TwoFactorCodeChallengeDTO twoFactorCodeChallengeDTO) {
         User user = this.userLookupService.find(userId);
@@ -113,6 +105,15 @@ public class AuthenticationService {
         return this.finalizeAuthentication(authentication, user, AuthenticationService.AUTH_SCOPES, twoFactorCodeChallengeDTO.getClientInfoDTO());
     }
 
+    /**
+     * Challenges a user's Two-Factor Authentication (2FA) recovery code to verify their identity.
+     * This method validates the provided recovery code and, if successful, completes the authentication process.
+     *
+     * @param userId the ID of the user attempting to authenticate
+     * @param twoFactorRecoveryCodeChallengeDTO the data transfer object containing the recovery code and client information
+     * @return an {@code AuthenticationContract} representing the result of the authenticated session
+     * @throws NotEnabledTwoFactorAuthException if 2FA is not enabled for the specified user
+     */
     public AuthenticationContract challenge2FARecoveryCode(int userId, TwoFactorRecoveryCodeChallengeDTO twoFactorRecoveryCodeChallengeDTO) {
         User user = this.userLookupService.find(userId);
         if ( !user.is2FAEnabled() ) {
@@ -136,12 +137,8 @@ public class AuthenticationService {
      * @throws UsernameNotFoundException If the user cannot be found or is not active.
      */
     public User getAuthenticatedUser(Authentication authentication) {
-        try {
-            AuthenticatedUserDetails authenticatedUserDetails = (AuthenticatedUserDetails)authentication.getPrincipal();
-            return this.userLookupService.findActiveUserByEmail(authenticatedUserDetails.getUsername());
-        } catch (NotFoundException ex) {
-            throw new UsernameNotFoundException("User not found.", ex);
-        }
+        AuthenticatedUserDetails authenticatedUserDetails = (AuthenticatedUserDetails)authentication.getPrincipal();
+        return this.userLookupService.findActiveUserByEmail(authenticatedUserDetails.getUsername());
     }
 
     /**
@@ -172,6 +169,7 @@ public class AuthenticationService {
                     .expiration(rotatedRefreshToken.getExpiredAt())
                     .payload(refreshTokenDTO.getPayload())
                     .scopes(refreshTokenDTO.getScopes())
+                    .user(refreshTokenDTO.getUser())
                     .build();
         }
         this.applicationEventPublisher.publishEvent(new AuthRenewCompletedEvent(this, refreshTokenDTO.getUser()));

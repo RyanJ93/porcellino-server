@@ -33,7 +33,6 @@ public class AuthController {
         this.authenticationService = authenticationService;
     }
 
-
     /**
      * Perform user authentication.
      */

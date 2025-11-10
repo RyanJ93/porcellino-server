@@ -1,7 +1,7 @@
 package dev.enricosola.porcellino.service;
 
 import dev.enricosola.porcellino.dto.TwoFactorAuthSetupDTO;
-import dev.enricosola.porcellino.exception.TwoFactorQRCodeGenerationException;
+import dev.enricosola.porcellino.exception.auth.twofactor.QRCodeGenerationTwoFactorAuthException;
 import org.springframework.stereotype.Service;
 import com.google.zxing.WriterException;
 import java.io.IOException;
@@ -27,7 +27,7 @@ public class TwoFactorAuthQRCodeGeneratorService {
         try {
             return this.qrCodeService.generateAsBase64(twoFactorAuthSetupDTO.getUrl(), TwoFactorAuthQRCodeGeneratorService.QR_CODE_SIZE);
         } catch (WriterException|IOException ex) {
-            throw new TwoFactorQRCodeGenerationException("Unable to generate QR code for Two-Factor Auth Setup", ex);
+            throw new QRCodeGenerationTwoFactorAuthException("Unable to generate QR code for Two-Factor Auth Setup", ex);
         }
     }
 }

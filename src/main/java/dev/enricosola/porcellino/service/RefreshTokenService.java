@@ -1,5 +1,8 @@
 package dev.enricosola.porcellino.service;
 
+import dev.enricosola.porcellino.exception.auth.token.InvalidTokenException;
+import dev.enricosola.porcellino.exception.auth.token.GenerationTokenException;
+import dev.enricosola.porcellino.exception.auth.token.UnpackTokenException;
 import dev.enricosola.porcellino.repository.RefreshTokenRepository;
 import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -53,11 +56,11 @@ public class RefreshTokenService implements TokenService {
      *
      * @param token The token string to search for.
      * @return The refresh token associated with the given token string.
-     * @throws NotFoundException If no refresh token is found for the given token string.
+     * @throws LegacyNotFoundException If no refresh token is found for the given token string.
      */
     public RefreshToken find(String token) {
         Optional<RefreshToken> refreshToken = this.refreshTokenRepository.findByToken(token);
-        return refreshToken.orElseThrow(() -> new NotFoundException("No such token found."));
+        return refreshToken.orElseThrow(() -> new LegacyNotFoundException("No such token found."));
     }
 
     /**
@@ -65,7 +68,7 @@ public class RefreshTokenService implements TokenService {
      *
      * @param token The token string to search for and validate.
      * @return The refresh token if it is found and not expired.
-     * @throws NotFoundException If no refresh token is found for the given token string.
+     * @throws LegacyNotFoundException If no refresh token is found for the given token string.
      * @throws RefreshTokenExpiredException If the refresh token has already expired.
      */
     public RefreshToken findAndValidate(String token) {
@@ -81,7 +84,7 @@ public class RefreshTokenService implements TokenService {
      *
      * @param token The token string to be found, validated, and rotated.
      * @return The updated refresh token with a new token string and updated expiration time.
-     * @throws NotFoundException If no refresh token is found for the given token string.
+     * @throws LegacyNotFoundException If no refresh token is found for the given token string.
      * @throws RefreshTokenExpiredException If the refresh token has already expired.
      */
     public RefreshToken findAndRotate(String token) {
@@ -97,14 +100,14 @@ public class RefreshTokenService implements TokenService {
      * Finds a refresh token by its token string and deletes it from the repository.
      *
      * @param token The token string used to locate and delete the refresh token.
-     * @throws NotFoundException If no refresh token is found for the given token string.
+     * @throws LegacyNotFoundException If no refresh token is found for the given token string.
      */
     @Transactional
     public void findAndDelete(String token) {
         RefreshToken refreshToken = this.find(token);
         try {
             this.clientTrackingService.findByRefAndDelete(RefreshTokenService.CLIENT_TRACKING_REF_NAME, refreshToken.getId());
-        } catch (NotFoundException ignored) {}
+        } catch (LegacyNotFoundException ignored) {}
         this.refreshTokenRepository.delete(refreshToken);
     }
 
@@ -113,9 +116,9 @@ public class RefreshTokenService implements TokenService {
      *
      * @param user The user the generated token is associated with.
      * @return The generated token.
-     * @throws TokenGenerationException If an error occurs during token generation.
+     * @throws GenerationTokenException If an error occurs during token generation.
      */
-    public UserTokenDTO generate(User user) throws TokenGenerationException {
+    public UserTokenDTO generate(User user) throws GenerationTokenException {
         return this.generate(user, new String[]{}, new HashMap<>(), null);
     }
 
@@ -125,9 +128,9 @@ public class RefreshTokenService implements TokenService {
      * @param user The user the generated token is associated with.
      * @param scopes Some scopes associated with this token.
      * @return The generated token.
-     * @throws TokenGenerationException If an error occurs during token generation.
+     * @throws GenerationTokenException If an error occurs during token generation.
      */
-    public UserTokenDTO generate(User user, String[] scopes) throws TokenGenerationException {
+    public UserTokenDTO generate(User user, String[] scopes) throws GenerationTokenException {
         return this.generate(user, scopes, new HashMap<>(), null);
     }
 
@@ -138,9 +141,9 @@ public class RefreshTokenService implements TokenService {
      * @param scopes Some scopes associated with this token.
      * @param payload An optional custom payload to add to the generated token.
      * @return The generated token.
-     * @throws TokenGenerationException If an error occurs during token generation.
+     * @throws GenerationTokenException If an error occurs during token generation.
      */
-    public UserTokenDTO generate(User user, String[] scopes, Map<String, String> payload) throws TokenGenerationException {
+    public UserTokenDTO generate(User user, String[] scopes, Map<String, String> payload) throws GenerationTokenException {
         return this.generate(user, scopes, payload, null);
     }
 
@@ -152,9 +155,10 @@ public class RefreshTokenService implements TokenService {
      * @param payload A custom key-value data payload that will be included in the token.
      * @param clientInfoDTO Information about the client (e.g., user agent and IP address).
      * @return A UserTokenDTO containing details of the generated token, user, scopes, and payload.
-     * @throws TokenGenerationException If an error occurs during the token generation process.
+     * @throws GenerationTokenException If an error occurs during the token generation process.
      */
-    public UserTokenDTO generate(User user, String[] scopes, Map<String, String> payload, ClientInfoDTO clientInfoDTO) throws TokenGenerationException {
+    @Transactional
+    public UserTokenDTO generate(User user, String[] scopes, Map<String, String> payload, ClientInfoDTO clientInfoDTO) throws GenerationTokenException {
          try {
              Date expiration = new Date(System.currentTimeMillis() + (this.refreshTokenTTL * 1000L));
              String token = StringUtils.generateCryptoRandomString(this.refreshTokenLength);
@@ -176,7 +180,7 @@ public class RefreshTokenService implements TokenService {
                      .user(user)
                      .build();
          } catch (JsonProcessingException ex) {
-             throw new TokenGenerationException("Unable to serialize payload to JSON.", ex);
+             throw new GenerationTokenException("Unable to serialize payload to JSON.", ex);
          }
     }
 
@@ -185,9 +189,9 @@ public class RefreshTokenService implements TokenService {
      *
      * @param token The token to unpack.
      * @return The unpacked token details, including user information, token, and payload.
-     * @throws TokenUnpackException If an error occurs while unpacking the token.
+     * @throws UnpackTokenException If an error occurs while unpacking the token.
      */
-    public UserTokenDTO unpack(String token) throws TokenUnpackException, InvalidTokenException {
+    public UserTokenDTO unpack(String token) throws UnpackTokenException, InvalidTokenException {
         try {
             RefreshToken refreshToken = this.findAndValidate(token);
             HashMap<String, String> payload = new HashMap<>();

@@ -1,7 +1,7 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.exception.TwoFactorAuthNotInitializedException;
-import dev.enricosola.porcellino.exception.InvalidTwoFactorAuthCodeException;
+import dev.enricosola.porcellino.exception.auth.twofactor.NotInitializedTwoFactorAuthException;
+import dev.enricosola.porcellino.exception.auth.twofactor.InvalidCodeTwoFactorAuthException;
 import dev.enricosola.porcellino.dto.TwoFactorAuthRecoveryCodeCollectionDTO;
 import dev.enricosola.porcellino.dto.TwoFactorAuthSetupWithQRCodeDTO;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,15 +96,15 @@ public class TwoFactorAuthService {
      *
      * @param secret The secret key used to verify the authentication code.
      * @param code The two-factor authentication code to be verified.
-     * @throws TwoFactorAuthNotInitializedException If the secret is null or blank.
-     * @throws InvalidTwoFactorAuthCodeException If the authentication code is invalid for the given secret.
+     * @throws NotInitializedTwoFactorAuthException If the secret is null or blank.
+     * @throws InvalidCodeTwoFactorAuthException If the authentication code is invalid for the given secret.
      */
     public void check(String secret, String code) {
         if ( secret == null || secret.isBlank() ){
-            throw new TwoFactorAuthNotInitializedException("Two-factor authentication has not been initialized yet.");
+            throw new NotInitializedTwoFactorAuthException("Two-factor authentication has not been initialized yet.");
         }
         if ( !this.verify(secret, code) ){
-            throw new InvalidTwoFactorAuthCodeException("Invalid two-factor authentication code.");
+            throw new InvalidCodeTwoFactorAuthException("Invalid two-factor authentication code.");
         }
     }
 
@@ -136,8 +136,8 @@ public class TwoFactorAuthService {
      * @param userId The ID of the user for whom two-factor authentication will be disabled.
      * @param secret The secret key used to verify the authentication code.
      * @param code The two-factor authentication code to be verified.
-     * @throws TwoFactorAuthNotInitializedException If the secret is null or blank.
-     * @throws InvalidTwoFactorAuthCodeException If the authentication code is invalid for the given secret.
+     * @throws NotInitializedTwoFactorAuthException If the secret is null or blank.
+     * @throws InvalidCodeTwoFactorAuthException If the authentication code is invalid for the given secret.
      */
     public void checkAndDisable(int userId, String secret, String code) {
         this.check(secret, code);
@@ -151,8 +151,8 @@ public class TwoFactorAuthService {
      * @param secret The secret key used to verify the authentication code.
      * @param code The two-factor authentication code to be verified.
      * @return a TwoFactorAuthConfigurationDTO containing an array of generated recovery codes in plain text format.
-     * @throws TwoFactorAuthNotInitializedException If the secret is null or blank.
-     * @throws InvalidTwoFactorAuthCodeException If the authentication code is invalid for the given secret.
+     * @throws NotInitializedTwoFactorAuthException If the secret is null or blank.
+     * @throws InvalidCodeTwoFactorAuthException If the authentication code is invalid for the given secret.
      */
     public TwoFactorAuthRecoveryCodeCollectionDTO checkAndEnable(int userId, String secret, String code) {
         this.check(secret, code);

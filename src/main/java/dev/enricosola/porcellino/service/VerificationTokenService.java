@@ -1,6 +1,6 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.exception.MalformedVerificationTokenException;
+import dev.enricosola.porcellino.exception.user.MalformedVerificationTokenUserException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
@@ -64,14 +64,14 @@ public class VerificationTokenService {
      *
      * @return The extracted identifier.
      *
-     * @throws MalformedVerificationTokenException If the given token is malformed or does not contain the required components.
+     * @throws MalformedVerificationTokenUserException If the given token is malformed or does not contain the required components.
      */
     public String extractIdentifierFromToken(String token) {
         SecretKey secretKey = Keys.hmacShaKeyFor(this.jwtSecret.getBytes(StandardCharsets.UTF_8));
         JwtParser jwtParser = Jwts.parser().verifyWith(secretKey).build();
         String[] components = jwtParser.parseSignedClaims(token).getPayload().getSubject().split(":");
         if ( components.length != 2 ){
-            throw new MalformedVerificationTokenException("JWT token misses some required components in its payload.");
+            throw new MalformedVerificationTokenUserException("JWT token misses some required components in its payload.");
         }
         return components[1];
     }

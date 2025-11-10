@@ -1,6 +1,7 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.notifications.user.*;
+import dev.enricosola.porcellino.exception.auth.twofactor.AlreadyEnabledTwoFactorAuthException;
+import dev.enricosola.porcellino.exception.auth.twofactor.NotInitializedTwoFactorAuthException;
 import dev.enricosola.porcellino.dto.TwoFactorAuthRecoveryCodeCollectionDTO;
 import dev.enricosola.porcellino.service.notification.NotificationService;
 import dev.enricosola.porcellino.dto.TwoFactorAuthSetupWithQRCodeDTO;
@@ -13,15 +14,18 @@ import dev.enricosola.porcellino.dto.TwoFactorAuthSetupDTO;
 import dev.enricosola.porcellino.repository.UserRepository;
 import dev.enricosola.porcellino.events.UserCreatedEvent;
 import dev.enricosola.porcellino.events.UserUpdatedEvent;
+import dev.enricosola.porcellino.notifications.user.*;
+import dev.enricosola.porcellino.exception.user.*;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
-import dev.enricosola.porcellino.exception.*;
 import dev.enricosola.porcellino.dto.user.*;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.util.Date;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class UserService {
     private final EmailVerificationTokenService emailVerificationTokenService;
     private final UserVerificationTokenService userVerificationTokenService;
@@ -32,34 +36,12 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
 
-    public UserService(
-            EmailVerificationTokenService emailVerificationTokenService,
-            UserVerificationTokenService userVerificationTokenService,
-            ApplicationEventPublisher applicationEventPublisher,
-            TwoFactorAuthService twoFactorAuthService,
-            NotificationService notificationService,
-            UserLookupService userLookupService,
-            PasswordEncoder passwordEncoder,
-            UserRepository userRepository
-    ) {
-        this.emailVerificationTokenService = emailVerificationTokenService;
-        this.userVerificationTokenService = userVerificationTokenService;
-        this.applicationEventPublisher = applicationEventPublisher;
-        this.twoFactorAuthService = twoFactorAuthService;
-        this.notificationService = notificationService;
-        this.userLookupService = userLookupService;
-        this.passwordEncoder = passwordEncoder;
-        this.userRepository = userRepository;
-    }
-
     /**
      * Look up a user given its email.
      *
      * @param email The email address to lookup.
-     *
      * @return The corresponding user.
-     *
-     * @throws NotFoundException If no user matching the given email address is found.
+     * @throws NotFoundUserException If no user matching the given email address is found.
      */
     public User findByEmail(String email) {
         return this.userLookupService.findByEmail(email);
@@ -69,10 +51,8 @@ public class UserService {
      * Lookup a user given its unique id.
      *
      * @param id The user unique id.
-     *
      * @return The corresponding user.
-     *
-     * @throws NotFoundException If no user matching given ID is found.
+     * @throws NotFoundUserException If no user matching the given email address is found.
      */
     public User find(int id) {
         return this.userLookupService.find(id);
@@ -82,10 +62,9 @@ public class UserService {
      * Create a new user.
      *
      * @param userCreateDTO A DTO containing user properties.
-     *
      * @return The created user.
-     *
-     * @throws DuplicateEmailAddressException If provided email address is already in use.
+     * @throws DuplicateEmailAddressUserException If provided email address is already in use.
+     * @throws NotCreatedUserException If the user could not be created.
      */
     @Transactional
     public User create(UserCreateDTO userCreateDTO) {
@@ -98,7 +77,9 @@ public class UserService {
             log.info("Created new user with ID \"{}\"", user.getId());
             return user;
         } catch (DataIntegrityViolationException ex) {
-            throw new DuplicateEmailAddressException("Email address already in use.", ex);
+            throw new DuplicateEmailAddressUserException("Email address already in use.", ex);
+        } catch (Exception ex) {
+            throw new NotCreatedUserException("Could not create user.", ex);
         }
     }
 
@@ -107,31 +88,34 @@ public class UserService {
      *
      * @param userId The user to activate.
      * @param userActivateDTO a DTO containing the verification token.
-     *
      * @return The activated user.
-     *
-     * @throws VerificationTokenMismatchException If given verification token mismatch.
+     * @throws VerificationTokenMismatchUserException If given verification token mismatch.
+     * @throws NotFoundUserException If no user matching the given email address is found.
+     * @throws NotActivatedUserException If the user could not be activated.
      */
     @Transactional
     public User findAndActivate(int userId, UserActivateDTO userActivateDTO) {
         User user = this.find(userId);
         if ( !this.userVerificationTokenService.validate(user, userActivateDTO.getToken()) ){
-            throw new VerificationTokenMismatchException("Verification token mismatch.");
+            throw new VerificationTokenMismatchUserException("Verification token mismatch.");
         }
-        user = this.userRepository.save(userActivateDTO.hydrateEntity(user));
-        this.applicationEventPublisher.publishEvent(new UserActivatedEvent(this, user));
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        log.info("Activated user \"{}\"", user.getId());
-        return user;
+        try {
+            user = this.userRepository.save(userActivateDTO.hydrateEntity(user));
+            this.applicationEventPublisher.publishEvent(new UserActivatedEvent(this, user));
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            log.info("Activated user \"{}\"", user.getId());
+            return user;
+        } catch (Exception ex) {
+            throw new NotActivatedUserException("Could not activate user.", ex);
+        }
     }
 
     /**
      * Look up a user by email and then send him the activation email message.
      *
      * @param userResendActivationTokenDTO A DTO containing the user email address.
-     *
-     * @throws UserAlreadyActivatedException If the given user has already been activated.
-     * @throws NotFoundException If no user matching the given email address is found.
+     * @throws AlreadyActivatedUserException If the given user has already been activated.
+     * @throws NotFoundUserException If no user matching the given email address is found.
      */
     public void findAndSendActivationEmail(UserResendActivationTokenDTO userResendActivationTokenDTO) {
         this.sendActivationEmail(this.findByEmail(userResendActivationTokenDTO.getEmail()));
@@ -143,62 +127,79 @@ public class UserService {
      * @param id the ID of the user to be updated.
      * @param userUpdateDTO an object containing the updated information for the user.
      * @return the updated user object after saving to the repository.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     public User findAndUpdate(int id, UserUpdateDTO userUpdateDTO) {
         User user = this.userLookupService.find(id);
-        user = userUpdateDTO.hydrateEntity(user);
-        this.userRepository.save(user);
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        return user;
+        try {
+            user = userUpdateDTO.hydrateEntity(user);
+            this.userRepository.save(user);
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            return user;
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
      * Finds a user by the given ID, verifies the old password, updates the password
      * to the new one, and persists the updated user information to the repository.
-     * An event is published upon successful update.
+     * An event is published upon a successful update.
      *
      * @param id The ID of the user whose password is to be updated.
      * @param passwordUpdateDTO The DTO containing the old password for verification and the new password for updating the user's credentials.
      * @return The updated User object with the new password saved.
-     * @throws PasswordMismatchException If the provided old password does not match the current password.
+     * @throws PasswordMismatchUserException If the provided old password does not match the current password.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     public User findAndUpdatePassword(int id, PasswordUpdateDTO passwordUpdateDTO) {
         User user = this.userLookupService.find(id);
         if ( !this.passwordEncoder.matches(passwordUpdateDTO.getOldPassword(), user.getPassword()) ){
-            throw new PasswordMismatchException("Old password does not match current password.");
+            throw new PasswordMismatchUserException("Old password does not match current password.");
         }
-        user.setPassword(this.passwordEncoder.encode(passwordUpdateDTO.getNewPassword()));
-        this.userRepository.save(user);
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        return user;
+        try {
+            user.setPassword(this.passwordEncoder.encode(passwordUpdateDTO.getNewPassword()));
+            this.userRepository.save(user);
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            return user;
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
      * Finds a user by their ID, initializes their email change process, and sends a confirmation email with a verification token.
      *
-     * @param id the unique identifier of the user.
-     * @param initEmailChangeDTO the DTO containing information to initialize the email change process for the user.
-     * @return the updated User object after the email change initialization.
-     * @throws InvalidPendingEmailException If the user does not have a valid pending email address.
-     * @throws InvalidNewEmailAddressException If given address is the same as the current one.
-     * @throws InvalidNewEmailAddressException If an invalid email address is provided.
-     * @throws NotFoundException If no user matching given ID is found.
+     * @param id The unique identifier of the user.
+     * @param initEmailChangeDTO The DTO containing information to initialize the email change process for the user.
+     * @return The updated User object after the email change initialization.
+     * @throws InvalidPendingEmailUserException If the user does not have a valid pending email address.
+     * @throws InvalidNewEmailAddressUserException If given address is the same as the current one.
+     * @throws InvalidNewEmailAddressUserException If an invalid email address is provided.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     @Transactional
     public User findAndInitEmailChange(int id, InitEmailChangeDTO initEmailChangeDTO) {
         User user = this.userLookupService.find(id);
         if (initEmailChangeDTO == null || initEmailChangeDTO.getEmail() == null || initEmailChangeDTO.getEmail().isBlank()) {
-            throw new InvalidNewEmailAddressException("Invalid email address provided.");
+            throw new InvalidNewEmailAddressUserException("Invalid email address provided.");
         }
         if (user.getEmail().equals(initEmailChangeDTO.getEmail())) {
-            throw new InvalidNewEmailAddressException("New email address cannot be the same as the current one.");
+            throw new InvalidNewEmailAddressUserException("New email address cannot be the same as the current one.");
         }
-        initEmailChangeDTO.hydrateEntity(user);
-        String verificationToken = this.emailVerificationTokenService.generate(user);
-        user = this.userRepository.save(user);
-        this.notificationService.send(new ConfirmEmailChangeUserEmailNotification(user, verificationToken));
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        return user;
+        try {
+            initEmailChangeDTO.hydrateEntity(user);
+            String verificationToken = this.emailVerificationTokenService.generate(user);
+            user = this.userRepository.save(user);
+            this.notificationService.send(new ConfirmEmailChangeUserEmailNotification(user, verificationToken));
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            return user;
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
@@ -207,21 +208,27 @@ public class UserService {
      * @param id the ID of the user requesting the email change.
      * @param applyEmailChangeDTO the data transfer object containing the email change information, including the verification token.
      * @return the updated User object after the email change has been applied.
-     * @throws UserMismatchException if the given user ID does not match the user associated with the provided token.
+     * @throws MismatchUserException if the given user ID does not match the user associated with the provided token.
+     * @throws NotFoundUserException If no user matching the given pending email address is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     public User findAndApplyEmailChange(int id, ApplyEmailChangeDTO applyEmailChangeDTO) {
         String pendingEmail = this.emailVerificationTokenService.extractPendingEmailFromToken(applyEmailChangeDTO.getToken());
         User user = this.userLookupService.findByPendingEmail(pendingEmail);
         if ( id != user.getId() ) {
-            throw new UserMismatchException("Given user ID does not match the user associated with the given verification token.");
+            throw new MismatchUserException("Given user ID does not match the user associated with the given verification token.");
         }
-        user.setEmail(pendingEmail);
-        user.setPendingEmail(null);
-        this.userRepository.save(user);
-        this.notificationService.send(new PreviousEmailChangeUserEmailNotification(user, pendingEmail));
-        this.notificationService.send(new EmailChangeUserEmailNotification(user));
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        return user;
+        try {
+            user.setEmail(pendingEmail);
+            user.setPendingEmail(null);
+            this.userRepository.save(user);
+            this.notificationService.send(new PreviousEmailChangeUserEmailNotification(user, pendingEmail));
+            this.notificationService.send(new EmailChangeUserEmailNotification(user));
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            return user;
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
@@ -229,13 +236,19 @@ public class UserService {
      *
      * @param id the unique identifier of the user.
      * @return the updated User object with the pending email change aborted.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     public User findAndAbortEmailChange(int id) {
         User user = this.userLookupService.find(id);
-        user.setPendingEmail(null);
-        this.userRepository.save(user);
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        return user;
+        try {
+            user.setPendingEmail(null);
+            this.userRepository.save(user);
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            return user;
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
@@ -243,14 +256,14 @@ public class UserService {
      *
      * @param requestPasswordResetDTO A DTO containing the user email address.
      *
-     * @throws MalformedVerificationTokenException If the given token is malformed or does not contain the required components.
-     * @throws NotFoundException If no user matching the given email address is found.
-     * @throws UserNotActiveException If user found has not been activated yet.
+     * @throws MalformedVerificationTokenUserException If the given token is malformed or does not contain the required components.
+     * @throws NotActiveUserException If user found has not been activated yet.
+     * @throws NotFoundUserException If no user matching given ID is found.
      */
     public void requestPasswordReset(RequestPasswordResetDTO requestPasswordResetDTO) {
         User user = this.findByEmail(requestPasswordResetDTO.getEmail());
         if ( !user.isActive() ){
-            throw new UserNotActiveException("User has not been activated yet.");
+            throw new NotActiveUserException("User has not been activated yet.");
         }
         String token = this.userVerificationTokenService.generate(user);
         this.notificationService.send(new PasswordResetUserEmailNotification(user, token));
@@ -261,13 +274,19 @@ public class UserService {
      * Reset a given user password.
      *
      * @param passwordResetDTO A DTO containing the user password and the verification token.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     public void resetPassword(PasswordResetDTO passwordResetDTO) {
         User user = this.userVerificationTokenService.extractUserFromToken(passwordResetDTO.getToken());
-        passwordResetDTO.hydrateEntity(user);
-        this.userRepository.save(user);
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        log.info("Password reset for user \"{}\".", user.getId());
+        try {
+            passwordResetDTO.hydrateEntity(user);
+            this.userRepository.save(user);
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            log.info("Password reset for user \"{}\".", user.getId());
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
@@ -275,26 +294,33 @@ public class UserService {
      *
      * @param userId ID of the user to set up 2FA for
      * @return TwoFactorAuthSetupDTO containing the secret required by the client to set up the 2FA and a URL which can be used to display a QR code that clients can scan.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     public TwoFactorAuthSetupDTO setup2FA(int userId) {
         User user = this.userLookupService.find(userId);
-        TwoFactorAuthSetupDTO twoFactorAuthSetupDTO = this.twoFactorAuthService.setup(user.getEmail());
-        user.setTwoFactorAuthSecret(twoFactorAuthSetupDTO.getSecret());
-        this.userRepository.save(user);
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        log.info("2FA setup for user \"{}\".", user.getId());
-        return twoFactorAuthSetupDTO;
+        try {
+            TwoFactorAuthSetupDTO twoFactorAuthSetupDTO = this.twoFactorAuthService.setup(user.getEmail());
+            user.setTwoFactorAuthSecret(twoFactorAuthSetupDTO.getSecret());
+            this.userRepository.save(user);
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            log.info("2FA setup for user \"{}\".", user.getId());
+            return twoFactorAuthSetupDTO;
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
-     * Sets up two-factor authentication with a QR code for the specified user and returns the setup details including the QR code image URL.
+     * Sets up two-factor authentication with a QR code for the specified user and returns the setup details, including the QR code image URL.
      *
      * @param userId The unique identifier of the user whose account needs to be set up for two-factor authentication.
      * @return A {@link TwoFactorAuthSetupWithQRCodeDTO} object containing the setup details, including the QR code image URL.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     public TwoFactorAuthSetupWithQRCodeDTO setup2FAWithQRCode(int userId) {
-        TwoFactorAuthSetupDTO twoFactorAuthSetupDTO = this.setup2FA(userId);
-        return this.twoFactorAuthService.injectQRCode(twoFactorAuthSetupDTO);
+        return this.twoFactorAuthService.injectQRCode(this.setup2FA(userId));
     }
 
     /**
@@ -304,6 +330,8 @@ public class UserService {
      * @param enableTwoFactorAuthDTO An object containing the required data, including the 2FA code, to enable 2FA.
      * @return A collection of recovery codes (encapsulated within a TwoFactorAuthRecoveryCodeCollectionDTO)
      *         for the user, which can be used to recover access in case the user loses their 2FA device.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     @Transactional
     public TwoFactorAuthRecoveryCodeCollectionDTO enable2FA(int userId, EnableTwoFactorAuthDTO enableTwoFactorAuthDTO) {
@@ -313,11 +341,15 @@ public class UserService {
         }
         String secret = user.getTwoFactorAuthSecret(), code = enableTwoFactorAuthDTO.getCode();
         var twoFactorAuthConfigurationDTO = this.twoFactorAuthService.checkAndEnable(userId, secret, code);
-        user.setTwoFactorAuthEnabledAt(new Date());
-        this.userRepository.save(user);
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        log.info("2FA enabled for user \"{}\".", user.getId());
-        return twoFactorAuthConfigurationDTO;
+        try {
+            user.setTwoFactorAuthEnabledAt(new Date());
+            this.userRepository.save(user);
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            log.info("2FA enabled for user \"{}\".", user.getId());
+            return twoFactorAuthConfigurationDTO;
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
@@ -325,12 +357,12 @@ public class UserService {
      *
      * @param userId The unique identifier of the user whose recovery codes are to be rotated.
      * @return A TwoFactorAuthRecoveryCodeCollectionDTO containing the newly generated recovery codes.
-     * @throws TwoFactorAuthNotInitializedException If two-factor authentication has not been initialized for the user.
+     * @throws NotInitializedTwoFactorAuthException If two-factor authentication has not been initialized for the user.
      */
     public TwoFactorAuthRecoveryCodeCollectionDTO rotate2FARecoveryCodes(int userId, RotateTwoFactorAuthRecoveryCodesDTO rotateTwoFactorAuthRecoveryCodesDTO) {
         User user = this.userLookupService.find(userId);
         if ( user.getTwoFactorAuthEnabledAt() == null ){
-            throw new TwoFactorAuthNotInitializedException("Two-factor authentication has not been initialized yet.");
+            throw new NotInitializedTwoFactorAuthException("Two-factor authentication has not been initialized yet.");
         }
         this.twoFactorAuthService.check(user.getTwoFactorAuthSecret(), rotateTwoFactorAuthRecoveryCodesDTO.getCode());
         log.info("Rotating recovery codes for user \"{}\".", user.getId());
@@ -342,28 +374,34 @@ public class UserService {
      *
      * @param userId The unique identifier of the user for whom 2FA is to be disabled.
      * @param disableTwoFactorAuthDTO An object containing data required to validate and perform the 2FA disabling process.
+     * @throws NotFoundUserException If no user matching given ID is found.
+     * @throws NotUpdatedUserException If the user could not be updated.
      */
     @Transactional
     public void disable2FA(int userId, DisableTwoFactorAuthDTO disableTwoFactorAuthDTO) {
         User user = this.userLookupService.find(userId);
         String secret = user.getTwoFactorAuthSecret(), code = disableTwoFactorAuthDTO.getCode();
         this.twoFactorAuthService.checkAndDisable(userId, secret, code);
-        user.setTwoFactorAuthEnabledAt(null);
-        user.setTwoFactorAuthSecret(null);
-        this.userRepository.save(user);
-        this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
-        log.info("2FA disabled for user \"{}\".", user.getId());
+        try {
+            user.setTwoFactorAuthEnabledAt(null);
+            user.setTwoFactorAuthSecret(null);
+            this.userRepository.save(user);
+            this.applicationEventPublisher.publishEvent(new UserUpdatedEvent(this, user));
+            log.info("2FA disabled for user \"{}\".", user.getId());
+        } catch (Exception ex) {
+            throw new NotUpdatedUserException("Could not update user.", ex);
+        }
     }
 
     /**
      * Send the activation email message to the given user.
      *
      * @param user The user the email will be sent to.
-     * @throws UserAlreadyActivatedException If the given user has already been activated.
+     * @throws AlreadyActivatedUserException If the given user has already been activated.
      */
     private void sendActivationEmail(User user) {
         if ( user.isActive() ) {
-            throw new UserAlreadyActivatedException("User already activated.");
+            throw new AlreadyActivatedUserException("User already activated.");
         }
         String verificationToken = this.userVerificationTokenService.generate(user);
         this.notificationService.send(new SignupUserEmailNotification(user, verificationToken));

@@ -3,7 +3,7 @@ package dev.enricosola.porcellino.service;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import dev.enricosola.porcellino.repository.RecoveryCodeRepository;
 import org.springframework.transaction.annotation.Transactional;
-import dev.enricosola.porcellino.exception.NotFoundException;
+import dev.enricosola.porcellino.exception.LegacyNotFoundException;
 import dev.enricosola.porcellino.entity.RecoveryCode;
 import dev.enricosola.porcellino.util.StringUtils;
 import org.springframework.stereotype.Service;
@@ -46,14 +46,14 @@ public class RecoveryCodeService {
      * @param userId the ID of the user whose recovery codes are being searched.
      * @param code the plain text recovery code to match.
      * @return The matching recovery code if found.
-     * @throws NotFoundException if no matching recovery code is found.
+     * @throws LegacyNotFoundException if no matching recovery code is found.
      */
     public RecoveryCode findByCode(int userId, String code) {
         List<RecoveryCode> recoveryCodeList = this.findAll(userId);
         return recoveryCodeList.stream()
                 .filter(rc -> this.passwordEncoder.matches(code, rc.getCode()))
                 .findFirst()
-                .orElseThrow(() -> new NotFoundException("No recovery code found matching given code found."));
+                .orElseThrow(() -> new LegacyNotFoundException("No recovery code found matching given code found."));
     }
 
     /**
@@ -62,7 +62,7 @@ public class RecoveryCodeService {
      * @param userId the ID of the user whose recovery code is being processed.
      * @param code the plain text recovery code to match.
      * @return the recovery code that was found and invalidated.
-     * @throws NotFoundException if no matching recovery code is found.
+     * @throws LegacyNotFoundException if no matching recovery code is found.
      */
     public RecoveryCode findByCodeAndInvalidate(int userId, String code) {
         RecoveryCode recoveryCode = this.findByCode(userId, code);

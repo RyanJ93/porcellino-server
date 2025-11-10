@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 
+@Deprecated
 @Getter
 public class BindingErrorResponse extends ErrorResponse implements Response, Serializable {
     @Serial

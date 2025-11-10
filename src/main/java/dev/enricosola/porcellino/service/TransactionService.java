@@ -7,7 +7,7 @@ import dev.enricosola.porcellino.events.transaction.TransactionDeletedEvent;
 import dev.enricosola.porcellino.events.transaction.TransactionUpdatedEvent;
 import dev.enricosola.porcellino.repository.TransactionRepository;
 import org.springframework.transaction.annotation.Transactional;
-import dev.enricosola.porcellino.exception.NotFoundException;
+import dev.enricosola.porcellino.exception.LegacyNotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
 import dev.enricosola.porcellino.entity.Transaction;
 import dev.enricosola.porcellino.entity.Portfolio;
@@ -51,11 +51,11 @@ public class TransactionService {
      * @param portfolioId the unique identifier of the portfolio to which the transaction belongs.
      * @param id the unique identifier of the transaction to be retrieved.
      * @return the transaction matching the given identifiers.
-     * @throws NotFoundException if no transaction is found matching the provided identifiers.
+     * @throws LegacyNotFoundException if no transaction is found matching the provided identifiers.
      */
     public Transaction find(int portfolioId, int id) {
         return this.transactionRepository.findByIdAndPortfolioId(id, portfolioId)
-                .orElseThrow(() -> new NotFoundException("No matching transaction found."));
+                .orElseThrow(() -> new LegacyNotFoundException("No matching transaction found."));
     }
 
     /**
@@ -81,7 +81,7 @@ public class TransactionService {
      * @param id the unique identifier of the transaction to be updated.
      * @param transactionUpdateDTO the data transfer object containing the updated details for the transaction.
      * @return the updated Transaction object after persisting changes.
-     * @throws NotFoundException if no transaction is found matching the provided identifiers.
+     * @throws LegacyNotFoundException if no transaction is found matching the provided identifiers.
      */
     public Transaction update(int portfolioId, int id, TransactionUpdateDTO transactionUpdateDTO) {
         Transaction transaction = this.find(portfolioId, id);
@@ -97,7 +97,7 @@ public class TransactionService {
      *
      * @param portfolioId the unique identifier of the portfolio to which the transaction belongs.
      * @param id the unique identifier of the transaction to be deleted.
-     * @throws NotFoundException if no transaction is found matching the provided identifiers.
+     * @throws LegacyNotFoundException if no transaction is found matching the provided identifiers.
      */
     public void delete(int portfolioId, int id) {
         Transaction transaction = this.find(portfolioId, id);

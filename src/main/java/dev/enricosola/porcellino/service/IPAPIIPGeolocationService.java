@@ -51,12 +51,14 @@ public class IPAPIIPGeolocationService implements IPGeolocationService {
      * @throws IOException If an I/O error occurs while sending or receiving during the request.
      * @throws InterruptedException If the operation is interrupted while waiting for the response.
      */
-    @SuppressWarnings("resource")
     private HttpResponse<String> sendRequest(String IPAddress) throws IOException, InterruptedException {
         URI uri = URI.create(IPAPIIPGeolocationService.API_URL + IPAddress);
         HttpRequest httpRequest = HttpRequest.newBuilder().uri(uri).GET().build();
-        HttpClient httpClient = HttpClient.newHttpClient();
-        return httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+        try (HttpClient httpClient = HttpClient.newHttpClient()) {
+            return httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+        } catch (IOException|InterruptedException ex) {
+            throw new IOException("Unable to perform IP lookup.", ex);
+        }
     }
 
     /**

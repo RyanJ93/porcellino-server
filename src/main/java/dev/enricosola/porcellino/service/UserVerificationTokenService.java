@@ -1,7 +1,7 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.exception.MalformedVerificationTokenException;
-import dev.enricosola.porcellino.exception.NotFoundException;
+import dev.enricosola.porcellino.exception.user.MalformedVerificationTokenUserException;
+import dev.enricosola.porcellino.exception.LegacyNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
@@ -64,8 +64,8 @@ public class UserVerificationTokenService {
      *
      * @return The extracted user.
      *
-     * @throws MalformedVerificationTokenException If the given token is malformed or does not contain the required components.
-     * @throws NotFoundException If no user matching extracted ID is found.
+     * @throws MalformedVerificationTokenUserException If the given token is malformed or does not contain the required components.
+     * @throws LegacyNotFoundException If no user matching extracted ID is found.
      */
     public User extractUserFromToken(String token) {
         String identifier = this.verificationTokenService.extractIdentifierFromToken(token);

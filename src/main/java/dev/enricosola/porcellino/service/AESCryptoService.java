@@ -1,7 +1,7 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.exception.DecryptException;
-import dev.enricosola.porcellino.exception.EncryptException;
+import dev.enricosola.porcellino.exception.crypto.DecryptionFailedCryptoException;
+import dev.enricosola.porcellino.exception.crypto.EncryptionFailedCryptoException;
 import org.springframework.beans.factory.annotation.Value;
 import javax.crypto.spec.SecretKeySpec;
 import javax.crypto.Cipher;
@@ -18,8 +18,9 @@ public class AESCryptoService implements CryptoService {
      *
      * @param plainText The plain text to be encrypted.
      * @return The encrypted representation of the provided plain text.
+     * @throws EncryptionFailedCryptoException If an error occurs during encryption.
      */
-    public String encrypt(String plainText) throws EncryptException  {
+    public String encrypt(String plainText) {
         try {
             SecretKeySpec secretKeySpec = new SecretKeySpec(this.secretKey.getBytes(), AESCryptoService.ALGORITHM_NAME);
             Cipher cipher = Cipher.getInstance(AESCryptoService.ALGORITHM_NAME);
@@ -27,7 +28,7 @@ public class AESCryptoService implements CryptoService {
             byte[] encrypted = cipher.doFinal(plainText.getBytes());
             return Base64.getEncoder().encodeToString(encrypted);
         } catch (Exception ex) {
-            throw new EncryptException("Error while encrypting the provided text.", ex);
+            throw new EncryptionFailedCryptoException("Error while encrypting the provided text.", ex);
         }
     }
 
@@ -36,8 +37,9 @@ public class AESCryptoService implements CryptoService {
      *
      * @param encryptedText The encrypted text to be decrypted.
      * @return The decrypted textual representation of the input.
+     * @throws DecryptionFailedCryptoException If an error occurs during decryption.
      */
-    public String decrypt(String encryptedText) throws DecryptException {
+    public String decrypt(String encryptedText) {
         try {
             SecretKeySpec secretKeySpec = new SecretKeySpec(this.secretKey.getBytes(), AESCryptoService.ALGORITHM_NAME);
             Cipher cipher = Cipher.getInstance(AESCryptoService.ALGORITHM_NAME);
@@ -45,7 +47,7 @@ public class AESCryptoService implements CryptoService {
             cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
             return new String(cipher.doFinal(decoded));
         } catch (Exception ex) {
-            throw new DecryptException("Error while decrypting the provided text.", ex);
+            throw new DecryptionFailedCryptoException("Error while decrypting the provided text.", ex);
         }
     }
 }

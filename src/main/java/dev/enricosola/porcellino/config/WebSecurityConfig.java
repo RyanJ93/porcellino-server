@@ -25,15 +25,14 @@ public class WebSecurityConfig {
             "/api/v1/users/@me/request-password-reset",
             "/api/v1/users/@me/reset/password",
             "/api/v1/users/signup",
-            "/api/v1/auth/**",
-            "/api/test/**"
+            "/api/v1/auth/**"
     };
 
     private final UserDetailsServiceImpl userDetailsService;
     private final AuthEntryPointJwt authEntryPointJwt;
     private final AuthTokenFilter authTokenFilter;
 
-    public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt authEntryPointJwt, AuthTokenFilter authTokenFilter){
+    public WebSecurityConfig(UserDetailsServiceImpl userDetailsService, AuthEntryPointJwt authEntryPointJwt, AuthTokenFilter authTokenFilter) {
         this.userDetailsService = userDetailsService;
         this.authEntryPointJwt = authEntryPointJwt;
         this.authTokenFilter = authTokenFilter;

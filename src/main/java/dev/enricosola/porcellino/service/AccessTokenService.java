@@ -1,8 +1,8 @@
 package dev.enricosola.porcellino.service;
 
-import dev.enricosola.porcellino.exception.TokenGenerationException;
-import dev.enricosola.porcellino.exception.InvalidTokenException;
-import dev.enricosola.porcellino.exception.TokenUnpackException;
+import dev.enricosola.porcellino.exception.auth.token.GenerationTokenException;
+import dev.enricosola.porcellino.exception.auth.token.InvalidTokenException;
+import dev.enricosola.porcellino.exception.auth.token.UnpackTokenException;
 import org.springframework.beans.factory.annotation.Value;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,6 +10,7 @@ import dev.enricosola.porcellino.dto.UserTokenDTO;
 import org.springframework.stereotype.Service;
 import dev.enricosola.porcellino.entity.User;
 import java.nio.charset.StandardCharsets;
+import lombok.RequiredArgsConstructor;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.JwtParser;
 import javax.crypto.SecretKey;
@@ -19,7 +20,14 @@ import java.util.Date;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class AccessTokenService implements TokenService {
+    private static class AccessTokenBody {
+        public Map<String, String> payload;
+        public String[] scopes;
+        public int userId;
+    }
+
     private final UserLookupService userLookupService;
 
     @Value("${app.jwtSecret}")
@@ -28,18 +36,14 @@ public class AccessTokenService implements TokenService {
     @Value("${app.accessTokenTTL:3600}")
     private int tokenTTL;
 
-    public AccessTokenService(UserLookupService userLookupService) {
-        this.userLookupService = userLookupService;
-    }
-
     /**
      * Generate a new JWT access token.
      *
      * @param user The user the generated token is associated with.
      * @return The generated token.
-     * @throws TokenGenerationException If an error occurs during token generation.
+     * @throws GenerationTokenException If an error occurs during token generation.
      */
-    public UserTokenDTO generate(User user) throws TokenGenerationException {
+    public UserTokenDTO generate(User user) {
         return this.generate(user, new String[]{}, new HashMap<>());
     }
 
@@ -49,9 +53,9 @@ public class AccessTokenService implements TokenService {
      * @param user The user the generated token is associated with.
      * @param scopes Some scopes associated with this token.
      * @return The generated token.
-     * @throws TokenGenerationException If an error occurs during token generation.
+     * @throws GenerationTokenException If an error occurs during token generation.
      */
-    public UserTokenDTO generate(User user, String[] scopes) throws TokenGenerationException {
+    public UserTokenDTO generate(User user, String[] scopes) {
         return this.generate(user, scopes, new HashMap<>());
     }
 
@@ -62,9 +66,9 @@ public class AccessTokenService implements TokenService {
      * @param scopes Some scopes associated with this token.
      * @param payload An optional custom payload to add to the generated token.
      * @return The generated token.
-     * @throws TokenGenerationException If an error occurs during token generation.
+     * @throws GenerationTokenException If an error occurs during token generation.
      */
-    public UserTokenDTO generate(User user, String[] scopes, Map<String, String> payload) throws TokenGenerationException {
+    public UserTokenDTO generate(User user, String[] scopes, Map<String, String> payload) {
         try {
             Date expiration = new Date(System.currentTimeMillis() + (this.tokenTTL * 1000L));
             String token = Jwts.builder()
@@ -81,7 +85,7 @@ public class AccessTokenService implements TokenService {
                     .user(user)
                     .build();
         } catch (JsonProcessingException ex) {
-            throw new TokenGenerationException("Unable to generate token body", ex);
+            throw new GenerationTokenException("Unable to generate token body", ex);
         }
     }
 
@@ -90,9 +94,10 @@ public class AccessTokenService implements TokenService {
      *
      * @param token The token to unpack.
      * @return The unpacked token details, including user information, token, and payload.
-     * @throws TokenUnpackException If an error occurs while unpacking the token.
+     * @throws UnpackTokenException If an error occurs while unpacking the token.
+     * @throws InvalidTokenException If the token is invalid.
      */
-    public UserTokenDTO unpack(String token) throws TokenUnpackException, InvalidTokenException {
+    public UserTokenDTO unpack(String token) {
         if ( !this.verify(token) ){
             throw new InvalidTokenException("Token is invalid.");
         }
@@ -110,7 +115,7 @@ public class AccessTokenService implements TokenService {
                     .user(user)
                     .build();
         } catch (JsonProcessingException ex) {
-            throw new TokenUnpackException("Unable to unpack token body", ex);
+            throw new UnpackTokenException("Unable to unpack token body", ex);
         }
     }
 
@@ -126,7 +131,7 @@ public class AccessTokenService implements TokenService {
             JwtParser jwtParser = Jwts.parser().verifyWith(secretKey).build();
             jwtParser.parseSignedClaims(token);
             return true;
-        } catch (Throwable ignored) {
+        } catch (Exception ignored) {
             return false;
         }
     }
@@ -147,10 +152,4 @@ public class AccessTokenService implements TokenService {
         accessTokenBody.scopes = scopes;
         return new ObjectMapper().writeValueAsString(accessTokenBody);
     }
-}
-
-class AccessTokenBody {
-    public Map<String, String> payload;
-    public String[] scopes;
-    public int userId;
 }

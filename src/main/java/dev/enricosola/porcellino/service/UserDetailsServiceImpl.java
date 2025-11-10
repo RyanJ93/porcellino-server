@@ -5,7 +5,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import dev.enricosola.porcellino.support.AuthenticatedUserDetails;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.transaction.annotation.Transactional;
-import dev.enricosola.porcellino.exception.NotFoundException;
+import dev.enricosola.porcellino.exception.LegacyNotFoundException;
 import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,7 +23,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         try {
             return new AuthenticatedUserDetails(this.userLookupService.findByEmail(username));
-        } catch (NotFoundException ignored) {
+        } catch (LegacyNotFoundException ignored) {
             log.info("Access denied for user \"{}\": no matching user found.", username);
             throw new UsernameNotFoundException("No user matching the given email address found.");
         }
